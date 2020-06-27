@@ -20,38 +20,44 @@ open polynomial matrix
 open_locale big_operators
 
 variables {R : Type u} [comm_ring R]
-variables {n : Type w} [fintype n] [decidable_eq n]
+variables {n : Type w} [fintype n] [decidable_eq n] [inhabited n]
 
 noncomputable def baz : matrix n n (polynomial R) ≃ₐ[R] polynomial (matrix n n R) :=
 (((matrix_equiv_tensor R (polynomial R) n)).trans (algebra.tensor_product.comm R _ _)).trans (polynomial_equiv_tensor R (matrix n n R)).symm
 
 -- maybe we don't need this?
-lemma matrix_eq {X : Type*} [add_comm_monoid X] (m : matrix n n X) :
-  m = ∑ (x : n × n), (λ i j, if (i, j) = x then m i j else 0) := by { ext, simp }
+-- lemma matrix_eq {X : Type*} [add_comm_monoid X] (m : matrix n n X) :
+--   m = ∑ (x : n × n), (λ i j, if (i, j) = x then m i j else 0) := by { ext, simp }
 
-@[elab_as_eliminator] protected lemma matrix.induction_on {X : Type*} [add_comm_monoid X] {M : matrix n n X → Prop} (m : matrix n n X)
+
+
+open finset
+
+
+@[elab_as_eliminator] protected lemma matrix.induction_on {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
   (h_add : ∀p q, M p → M q → M (p + q))
   (h_elementary : ∀ i j x, M (λ i' j', if i' = i ∧ j' = j then x else 0)) :
   M m :=
 begin
-  have : m = ∑ k l : n, (λ i' j', if i' = k ∧ j' = l then m k l else 0),
-  { ext,
-    rw finset.sum_apply,
-    rw finset.sum_apply,
-    rw ← finset.sum_subset, swap 4, exact {i},
-    { norm_num },
-    { simp },
-    intros, norm_num at a, norm_num,
-    convert finset.sum_const_zero, ext, rw if_neg, tauto },
-  rw this,
+  rw matrix_eq_sum_elementary m,
+  conv {congr, congr, skip, funext, },
+  rw ← sum_product',
+  apply sum_induction _ M h_add,
+  { have := h_elementary (arbitrary n) (arbitrary n) 0,
+    simp at this; exact this },
+  intros, cases x with i j, dsimp,
+  have := h_elementary i j (m i j),
+  unfold elementary_matrix,
+  convert this,
+  ext, dsimp, simp [mul_ite],
 end
 
 
-instance is_ring_hom_of_alg_hom
-  {R : Type u} [comm_ring R] {A : Type v} [ring A] [algebra R A] {B : Type w} [ring B] [algebra R B]
-  (f : A →ₐ[R] B) :
-is_ring_hom f :=
-{map_one := by simp, map_mul := by simp, map_add := by simp}
+-- instance is_ring_hom_of_alg_hom
+--   {R : Type u} [comm_ring R] {A : Type v} [ring A] [algebra R A] {B : Type w} [ring B] [algebra R B]
+--   (f : A →ₐ[R] B) :
+-- is_ring_hom f :=
+-- {map_one := by simp, map_mul := by simp, map_add := by simp}
 
 lemma baz_coeff_apply_aux_1 (i j : n) (k : ℕ) (x : R) :
   baz (λ i' j', if i' = i ∧ j' = j then monomial k x else 0) =

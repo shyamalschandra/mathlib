@@ -152,11 +152,11 @@ lemma matrix_eq {X : Type*} [add_comm_monoid X] (m : matrix n n X) :
   m = ∑ (x : n × n), (λ i j, if (i, j) = x then m i j else 0) := by { ext, simp }
 
 -- TODO move
-@[elab_as_eliminator] protected lemma matrix.induction_on
-  {X : Type*} [add_comm_monoid X] {M : matrix n n X → Prop} (m : matrix n n X)
-  (h_add : ∀p q, M p → M q → M (p + q))
-  (h_elementary : ∀ i j x, M (λ i' j', if i' = i ∧ j' = j then x else 0)) :
-  M m := sorry -- is_basis.repr
+-- @[elab_as_eliminator] protected lemma matrix.induction_on
+--   {X : Type*} [add_comm_monoid X] {M : matrix n n X → Prop} (m : matrix n n X)
+--   (h_add : ∀p q, M p → M q → M (p + q))
+--   (h_elementary : ∀ i j x, M (λ i' j', if i' = i ∧ j' = j then x else 0)) :
+--   M m := sorry -- is_basis.repr
 
 -- TODO move
 instance is_ring_hom_of_alg_hom

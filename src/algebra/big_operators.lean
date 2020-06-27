@@ -236,6 +236,12 @@ begin
   apply h, cc
 end
 
+
+@[to_additive]
+lemma prod_product' {s : finset γ} {t : finset α} {f : γ → α → β} :
+  (∏ x in s.product t, f x.fst x.snd) = ∏ x in s, ∏ y in t, f x y :=
+by rw prod_product
+
 @[to_additive]
 lemma prod_sigma {σ : α → Type*}
   {s : finset α} {t : Πa, finset (σ a)} {f : sigma σ → β} :
@@ -579,6 +585,18 @@ lemma sum_range_one {δ : Type*} [add_comm_monoid δ] (f : ℕ → δ) :
 @prod_range_one (multiplicative δ) _ f
 
 attribute [to_additive finset.sum_range_one] prod_range_one
+
+@[to_additive "To prove a property of a sum, it suffices to prove that the property is additive and holds on summands."]
+lemma prod_induction {M : Type*} [comm_monoid M] (f : α → M) (p : M → Prop)
+(p_mul : ∀ a b, p a → p b → p (a * b)) (p_one : p 1) (p_s : ∀ x ∈ s, p $ f x) :
+p $ ∏ x in s, f x :=
+begin
+  classical,
+  induction s using finset.induction with x hx s hs, simpa,
+  rw finset.prod_insert, swap, assumption,
+  apply p_mul, apply p_s, simp,
+  apply hs, intros a ha, apply p_s, simp [ha],
+end
 
 /-- For any product along `{0, ..., n-1}` of a commutative-monoid-valued function, we can verify that
 it's equal to a different function just by checking ratios of adjacent terms.

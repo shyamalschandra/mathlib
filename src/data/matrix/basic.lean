@@ -453,7 +453,7 @@ lemma vec_mul_vec_eq (w : m → α) (v : n → α) :
   vec_mul_vec w v = (col w) ⬝ (row v) :=
 by { ext i j, simp [vec_mul_vec, mul_val], refl }
 
-
+variables [decidable_eq m] [decidable_eq n]
 def elementary_matrix (i : m) (j : n) : matrix m n α :=
 (λ i' j', if i' = i ∧ j' = j then 1 else 0)
 
@@ -467,10 +467,10 @@ begin
   intros, norm_num at a, norm_num,
   convert finset.sum_const_zero,
   ext, norm_num [elementary_matrix],
-  rw if_neg, tauto
+  rw if_neg, tauto!,
 end
 
-lemma elementary_eq_basis_mul_basis [decidable_eq m] [decidable_eq n] (i : m) (j : n) :
+lemma elementary_eq_basis_mul_basis (i : m) (j : n) :
 elementary_matrix i j = vec_mul_vec (λ i', ite (i = i') 1 0) (λ j', ite (j = j') 1 0) :=
 begin
   ext, norm_num [elementary_matrix, vec_mul_vec],
