@@ -8,6 +8,10 @@ import ring_theory.polynomial_algebra
 import data.polynomial_cayley_hamilton
 import linear_algebra.nonsingular_inverse
 
+/-!
+The Cayley-Hamilton theorem, over a commutative ring.
+-/
+
 noncomputable theory
 
 universes u v w
@@ -41,14 +45,7 @@ begin
     convert finset.sum_const_zero, ext, rw if_neg, tauto },
   rw this,
 end
-#check finset.sum_apply
 
-example (f : n → n → R) :
-∑ i j : n, f i j = ∑ k : n × n, f k.fst k.snd :=
-begin
-
-end
-#check finset.sum_subset
 
 instance is_ring_hom_of_alg_hom
   {R : Type u} [comm_ring R] {A : Type v} [ring A] [algebra R A] {B : Type w} [ring B] [algebra R B]
@@ -100,31 +97,26 @@ begin
     split_ifs; simp },
 end
 
-def characteristic_matrix (m : matrix n n R) : matrix n n (polynomial R) :=
-matrix.scalar n (X : polynomial R) - (λ i j, C (m i j))
+/--
+The "characteristic matrix" of `M : matrix n n R` is the matrix of polynomials $t I - M$.
+The determinant of this matrix is the characteristic polynomial.
+-/
+def characteristic_matrix (M : matrix n n R) : matrix n n (polynomial R) :=
+matrix.scalar n (X : polynomial R) - (λ i j, C (M i j))
 
-@[simp] lemma characteristic_matrix_apply_eq (m : matrix n n R) (i : n) :
-  characteristic_matrix m i i = (X : polynomial R) - C (m i i) :=
+@[simp] lemma characteristic_matrix_apply_eq (M : matrix n n R) (i : n) :
+  characteristic_matrix M i i = (X : polynomial R) - C (M i i) :=
 by simp only [characteristic_matrix, sub_left_inj, pi.sub_apply, scalar_apply_eq]
 
-@[simp] lemma characteristic_matrix_apply_ne (m : matrix n n R) (i j : n) (h : i ≠ j) :
-  characteristic_matrix m i j = - C (m i j) :=
+@[simp] lemma characteristic_matrix_apply_ne (M : matrix n n R) (i j : n) (h : i ≠ j) :
+  characteristic_matrix M i j = - C (M i j) :=
 by simp only [characteristic_matrix, pi.sub_apply, scalar_apply_ne _ _ _ h, zero_sub]
 
-lemma r (p : polynomial R) :
-  baz (p • 1) = p.map (algebra_map R (matrix n n R)) :=
-begin
-  ext m i j,
-  simp [coeff_map, matrix.one_val],
-  simp [algebra_map_matrix_val],
-  split_ifs; simp,
-end
-
-lemma q (m : matrix n n R) :
-  baz (characteristic_matrix m) = X - C m :=
+lemma matrix_polynomial_equiv_polynomial_matrix_characteristic_matrix (M : matrix n n R) :
+  matrix_polynomial_equiv_polynomial_matrix (characteristic_matrix M) = X - C M :=
 begin
   ext k i j,
-  simp only [baz_coeff_apply, coeff_sub, pi.sub_apply],
+  simp only [matrix_polynomial_equiv_polynomial_matrix_coeff_apply, coeff_sub, pi.sub_apply],
   by_cases h : i = j,
   { subst h, rw [characteristic_matrix_apply_eq, coeff_sub],
     simp only [coeff_X, coeff_C],
@@ -133,23 +125,45 @@ begin
     split_ifs; simp [h], }
 end
 
-def characteristic_polynomial (m : matrix n n R) : polynomial R :=
-(characteristic_matrix m).det
+/--
+The characteristic polynomial of a matrix `M` is given by $det (t I - M)$.
+-/
+def characteristic_polynomial (M : matrix n n R) : polynomial R :=
+(characteristic_matrix M).det
 
-theorem cayley_hamilton (m : matrix n n R) :
-  (characteristic_polynomial m).eval₂ (algebra_map R (matrix n n R)) m = 0 :=
+/--
+The Cayley-Hamilton theorem, that the characteristic polynomial of a matrix,
+applied to the matrix itself, is zero.
+
+This holds over any commutative ring.
+-/
+-- This proof follows http://drorbn.net/AcademicPensieve/2015-12/CayleyHamilton.pdf
+theorem cayley_hamilton (M : matrix n n R) :
+  (characteristic_polynomial M).eval₂ (algebra_map R (matrix n n R)) M = 0 :=
 begin
+  -- We begin with the fact $χ_M(t) I = adjugate (t I - M) * (t I - M)$,
+  -- as an identity in `matrix n n (polynomial R)`.
   have := calc
-    (characteristic_polynomial m) • (1 : matrix n n (polynomial R))
-         = (characteristic_matrix m).det • (1 : matrix n n (polynomial R)) : rfl
-     ... = adjugate (characteristic_matrix m) * (characteristic_matrix m)  : (adjugate_mul _).symm,
-  apply_fun baz at this,
-  change _ = baz (_ * _) at this,
-  simp only [baz.map_mul] at this,
-  rw q at this,
-  apply_fun (λ p, p.eval₂ (ring_hom.id _) m) at this,
+    (characteristic_polynomial M) • (1 : matrix n n (polynomial R))
+         = (characteristic_matrix M).det • (1 : matrix n n (polynomial R)) : rfl
+     ... = adjugate (characteristic_matrix M) * (characteristic_matrix M)  : (adjugate_mul _).symm,
+  -- Using the algebra isomorphism `matrix n n (polynomial R) ≃ₐ[R] polynomial (matrix n n R)`,
+  -- we have the same identity in `polynomial (matrix n n R)`.
+  apply_fun matrix_polynomial_equiv_polynomial_matrix at this,
+  change _ = matrix_polynomial_equiv_polynomial_matrix (_ * _) at this,
+  simp only [matrix_polynomial_equiv_polynomial_matrix.map_mul] at this,
+  rw matrix_polynomial_equiv_polynomial_matrix_characteristic_matrix at this,
+  -- Because the coefficient ring `matrix n n R` is non-commutative,
+  -- evaluation at `M` is not multiplicative.
+  -- However, any polynomial which is a product of the form $N * (t I - M)$
+  -- is sent to zero, because the evaluation function puts the polynomial variable
+  -- to the right of any coefficients.
+  apply_fun (λ p, p.eval₂ (ring_hom.id _) M) at this,
   rw eval₂_mul_X_sub_C at this,
-  rw r at this,
+  -- Now $χ_M (t) I$, when thought of as a polynomial of matrices
+  -- and evaluated at some `N` is exactly $χ_M (N)$.
+  -- Thus we have $χ_M(M) = 0$, which is the desired result.
+  rw matrix_polynomial_equiv_polynomial_matrix_smul_one at this,
   rw eval₂_eq_eval_map at this ⊢,
   simp at this,
   exact this,
