@@ -37,6 +37,10 @@ variables (A : Type v) [ring A] [algebra R A]
 -- TODO move this back to `polynomial.lean`?
 instance turkle : algebra R (polynomial A) := add_monoid_algebra.algebra
 
+lemma turkle_map_apply (r : R) :
+  algebra_map R (polynomial A) r = C (algebra_map R A r) :=
+rfl
+
 namespace polynomial_equiv_tensor
 
 /--
@@ -53,7 +57,23 @@ as a linear map in the second factor.
 -/
 def to_fun_linear_right (a : A) : polynomial R →ₗ[R] polynomial A :=
 { to_fun := to_fun R A a,
-  map_smul' := λ r p, sorry,
+  map_smul' := λ r p,
+  begin
+    dsimp [to_fun],
+    rw finsupp.sum_smul_index,
+    { dsimp [finsupp.sum],
+      rw finset.smul_sum,
+      apply finset.sum_congr rfl,
+      intros k hk,
+      rw [monomial_eq_smul_X, monomial_eq_smul_X, algebra.smul_def, ← C_mul', ← C_mul',
+          ← _root_.mul_assoc],
+      congr' 1,
+      rw [← algebra.commutes, ← algebra.commutes],
+      simp only [ring_hom.map_mul, turkle_map_apply, _root_.mul_assoc] },
+    { intro i, simp,
+      -- this should be a separate simp lemma
+      sorry },
+  end,
   map_add' := λ p q,
   begin
     simp only [to_fun],
