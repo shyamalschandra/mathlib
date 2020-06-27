@@ -102,15 +102,13 @@ def to_fun_bilinear : A →ₗ[R] polynomial R →ₗ[R] polynomial A :=
     congr, simp only [linear_map.coe_mk],
     unfold to_fun finsupp.sum monomial,
     simp_rw [finset.smul_sum, finsupp.smul_single,  ← algebra.smul_mul_assoc],
-    refl
-  },
+    refl },
   map_add' := by {
     intros, unfold to_fun_linear_right,
     congr, simp only [linear_map.coe_mk],
     unfold to_fun finsupp.sum monomial,
     simp_rw [← finset.sum_add_distrib, ← finsupp.single_add, ← add_mul],
-    refl }
-   }
+    refl } }
 
 /--
 (Implementation detail).
