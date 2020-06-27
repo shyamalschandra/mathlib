@@ -53,8 +53,14 @@ as a linear map in the second factor.
 -/
 def to_fun_linear_right (a : A) : polynomial R →ₗ[R] polynomial A :=
 { to_fun := to_fun R A a,
-  map_smul' := sorry,
-  map_add' := sorry, }
+  map_smul' := λ r p, sorry,
+  map_add' := λ p q,
+  begin
+    simp only [to_fun],
+    rw finsupp.sum_add_index,
+    { sorry, },
+    { sorry, },
+  end, }
 
 /--
 (Implementation detail).
@@ -137,7 +143,9 @@ The algebra isomorphism stating "matrices of polynomials are the same as polynom
 -/
 noncomputable def matrix_polynomial_equiv_polynomial_matrix :
   matrix n n (polynomial R) ≃ₐ[R] polynomial (matrix n n R) :=
-(((matrix_equiv_tensor R (polynomial R) n)).trans (algebra.tensor_product.comm R _ _)).trans (polynomial_equiv_tensor R (matrix n n R)).symm
+(((matrix_equiv_tensor R (polynomial R) n)).trans
+  (algebra.tensor_product.comm R _ _)).trans
+  (polynomial_equiv_tensor R (matrix n n R)).symm
 
 -- maybe we don't need this?
 lemma matrix_eq {X : Type*} [add_comm_monoid X] (m : matrix n n X) :
@@ -177,6 +185,11 @@ begin
   { apply_instance },
 end
 
+-- TODO add appropriate other versions, and move
+lemma ite_add_zero {α : Type*} [add_monoid α] {P : Prop} [decidable P] {a b : α} :
+  ite P (a + b) 0 = ite P a 0 + ite P b 0 :=
+by { split_ifs; simp, }
+
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
   (i j : n) (p : polynomial R) (k : ℕ) :
   coeff (matrix_polynomial_equiv_polynomial_matrix (λ i' j', if i' = i ∧ j' = j then p else 0)) k =
@@ -184,7 +197,11 @@ lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
 begin
   apply polynomial.induction_on' p,
   { intros p q hp hq,
-    sorry, },
+    ext i' j',
+    simp only [ite_add_zero],
+    erw matrix_polynomial_equiv_polynomial_matrix.map_add,
+    simp only [hp, hq, coeff_add, add_val],
+    split_ifs; simp, },
   { intros k x,
     rw matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_1,
     simp [coeff_single],
