@@ -37,6 +37,10 @@ variables (A : Type v) [ring A] [algebra R A]
 -- TODO move this back to `polynomial.lean`?
 instance turkle : algebra R (polynomial A) := add_monoid_algebra.algebra
 
+lemma turkle_map_apply (r : R) :
+  algebra_map R (polynomial A) r = C (algebra_map R A r) :=
+rfl
+
 namespace polynomial_equiv_tensor
 
 /--
@@ -46,6 +50,16 @@ The bare function underlying `A ⊗[R] polynomial R →ₐ[R] polynomial A`, on 
 def to_fun (a : A) (p : polynomial R) : polynomial A :=
 p.sum (λ n r, monomial n (a * algebra_map R A r))
 
+-- move this
+@[simp] lemma monomial_zero (i : ℕ) :
+  monomial i (0 : A) = 0 :=
+by simp [monomial]
+
+-- move this
+@[simp] lemma monomial_add (i : ℕ) (r s : A) :
+  monomial i (r + s) = monomial i r + monomial i s :=
+by simp [monomial]
+
 /--
 (Implementation detail).
 The function underlying `A ⊗[R] polynomial R →ₐ[R] polynomial A`,
@@ -53,13 +67,27 @@ as a linear map in the second factor.
 -/
 def to_fun_linear_right (a : A) : polynomial R →ₗ[R] polynomial A :=
 { to_fun := to_fun R A a,
-  map_smul' := λ r p, sorry,
+  map_smul' := λ r p,
+  begin
+    dsimp [to_fun],
+    rw finsupp.sum_smul_index,
+    { dsimp [finsupp.sum],
+      rw finset.smul_sum,
+      apply finset.sum_congr rfl,
+      intros k hk,
+      rw [monomial_eq_smul_X, monomial_eq_smul_X, algebra.smul_def, ← C_mul', ← C_mul',
+          ← _root_.mul_assoc],
+      congr' 1,
+      rw [← algebra.commutes, ← algebra.commutes],
+      simp only [ring_hom.map_mul, turkle_map_apply, _root_.mul_assoc] },
+    { intro i, simp only [ring_hom.map_zero, mul_zero, monomial_zero] },
+  end,
   map_add' := λ p q,
   begin
     simp only [to_fun],
     rw finsupp.sum_add_index,
-    { sorry, },
-    { sorry, },
+    { simp only [monomial_zero, forall_const, ring_hom.map_zero, mul_zero], },
+    { intros i r s, simp only [ring_hom.map_add, mul_add, monomial_add], },
   end, }
 
 /--
