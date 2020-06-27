@@ -18,7 +18,18 @@ variables [is_ring_hom f]
 
 lemma foo {p : polynomial R} {r : R} {a : ℕ} :
   coeff (p * (X - monomial 0 r)) (a + 1) = coeff p a - coeff p (a + 1) * r :=
-sorry
+begin
+  -- Yuck... This will get there, but it is very painful.
+  -- Surely there's a better way?
+  simp [coeff_mul],
+  transitivity ∑ (x : ℕ × ℕ) in {(0, a+1), (1, a)}, coeff p x.1 * (coeff X x.2 - (monomial 0 r).coeff x.1),
+  apply finset.sum_bij_ne_zero (λ n _ _, n),
+  { intros x h₁ h₂, simp, sorry, },
+  sorry,
+  sorry,
+  sorry,
+  sorry,
+end
 
 @[simp] lemma coeff_nat_degree_succ_eq_zero {p : polynomial R} : p.coeff (p.nat_degree + 1) = 0 :=
 coeff_eq_zero_of_nat_degree_lt (lt_add_one _)
@@ -60,6 +71,11 @@ end
 lemma nat_degree_X_sub_monomial_zero {r : R} : (X - monomial 0 r).nat_degree = 1 :=
 sorry
 
+/--
+The evaluation map is not generally multiplicative when the coefficient ring is noncommutative,
+but nevertheless any polynomial of the form `p * (X - monomial 0 r)` is sent to zero
+when evaluated at `r`.
+-/
 lemma eval₂_mul_X_sub_monomial {p : polynomial R} {r : R} :
   (p * (X - monomial 0 r)).eval₂ f (f r) = 0 :=
 begin
