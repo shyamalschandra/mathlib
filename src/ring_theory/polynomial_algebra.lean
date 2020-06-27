@@ -118,12 +118,54 @@ as a linear map.
 def to_fun_linear : A ⊗[R] polynomial R →ₗ[R] polynomial A :=
 tensor_product.lift (to_fun_bilinear R A)
 
+lemma to_fun_linear_mul_tmul_mul (a₁ a₂ : A) (p₁ p₂ : polynomial R) :
+  (to_fun_linear R A) ((a₁ * a₂) ⊗ₜ[R] p₁ * p₂) =
+    (to_fun_linear R A) (a₁ ⊗ₜ[R] p₁) * (to_fun_linear R A) (a₂ ⊗ₜ[R] p₂) :=
+begin
+  sorry
+end
+
+lemma to_fun_linear_algebra_map_tmul_one (r : R) :
+  (to_fun_linear R A) ((algebra_map R A) r ⊗ₜ[R] 1) = (algebra_map R (polynomial A)) r :=
+begin
+  sorry
+end
+
+-- The following declaration is SLOOOOOOW
+/-
+polynomial_algebra.lean:142:4: information
+parsing took 0.217ms
+polynomial_algebra.lean:142:4: information
+elaboration of to_fun_alg_hom took 8.14s        ---- !!!!
+polynomial_algebra.lean:142:4: information
+type checking of to_fun_alg_hom took 75.8ms
+polynomial_algebra.lean:142:4: information
+decl post-processing of to_fun_alg_hom took 71ms
+-/
+
+set_option profiler true
+
 /--
 (Implementation detail).
 The algebra homomorphism `A ⊗[R] polynomial R →ₐ[R] polynomial A`.
 -/
 def to_fun_alg_hom : A ⊗[R] polynomial R →ₐ[R] polynomial A :=
-alg_hom_of_linear_map_tensor_product (to_fun_linear R A) sorry sorry
+alg_hom_of_linear_map_tensor_product (to_fun_linear R A)
+(to_fun_linear_mul_tmul_mul R A)
+(to_fun_linear_algebra_map_tmul_one R A)
+
+
+-- next one is also relatively slow
+/-
+polynomial_algebra.lean:163:4: information
+parsing took 0.292ms
+polynomial_algebra.lean:163:4: information
+elaboration of inv_fun took 1.25s
+polynomial_algebra.lean:163:4: information
+type checking of inv_fun took 30.5ms
+polynomial_algebra.lean:163:4: information
+decl post-processing of inv_fun took 27.7ms
+-/
 
 /--
 (Implementation detail.)
