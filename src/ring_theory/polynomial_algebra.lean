@@ -50,6 +50,16 @@ The bare function underlying `A ⊗[R] polynomial R →ₐ[R] polynomial A`, on 
 def to_fun (a : A) (p : polynomial R) : polynomial A :=
 p.sum (λ n r, monomial n (a * algebra_map R A r))
 
+-- move this
+@[simp] lemma monomial_zero (i : ℕ) :
+  monomial i (0 : A) = 0 :=
+by simp [monomial]
+
+-- move this
+@[simp] lemma monomial_add (i : ℕ) (r s : A) :
+  monomial i (r + s) = monomial i r + monomial i s :=
+by simp [monomial]
+
 /--
 (Implementation detail).
 The function underlying `A ⊗[R] polynomial R →ₐ[R] polynomial A`,
@@ -70,16 +80,14 @@ def to_fun_linear_right (a : A) : polynomial R →ₗ[R] polynomial A :=
       congr' 1,
       rw [← algebra.commutes, ← algebra.commutes],
       simp only [ring_hom.map_mul, turkle_map_apply, _root_.mul_assoc] },
-    { intro i, simp,
-      -- this should be a separate simp lemma
-      sorry },
+    { intro i, simp only [ring_hom.map_zero, mul_zero, monomial_zero] },
   end,
   map_add' := λ p q,
   begin
     simp only [to_fun],
     rw finsupp.sum_add_index,
-    { sorry, },
-    { sorry, },
+    { simp only [monomial_zero, forall_const, ring_hom.map_zero, mul_zero], },
+    { intros i r s, simp only [ring_hom.map_add, mul_add, monomial_add], },
   end, }
 
 /--
