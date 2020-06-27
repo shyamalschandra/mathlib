@@ -90,24 +90,14 @@ begin
   { simp [is_ring_hom.map_zero f], },
   rw sum_range_succ',
   conv_lhs {
-    congr,
-    apply_congr,
-    skip,
-    rw [foo],
-    rw [is_ring_hom.map_sub f],
-    rw [is_ring_hom.map_mul f],
-    rw [sub_mul],
-    rw [mul_assoc, ←pow_succ],
+    congr, apply_congr, skip,
+    rw [foo, is_ring_hom.map_sub f, is_ring_hom.map_mul f, sub_mul, mul_assoc, ←pow_succ],
   },
   conv_lhs {
-    congr,
-    skip,
-    simp [coeff_sub],
-    rw [is_ring_hom.map_neg f],
-    rw [is_ring_hom.map_mul f],
+    congr, skip,
+    simp [is_ring_hom.map_neg f, is_ring_hom.map_mul f],
   },
-  rw sum_range_sub',
-  simp [is_ring_hom.map_zero f],
+  simp [sum_range_sub', is_ring_hom.map_zero f],
 end
 
 lemma eval₂_mul_X_sub_monomial' {p : polynomial R} (r : R) :
