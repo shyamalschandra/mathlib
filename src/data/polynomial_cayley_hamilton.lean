@@ -20,7 +20,8 @@ lemma foo {p : polynomial R} {r : R} {a : ℕ} :
   coeff (p * (X - monomial 0 r)) (a + 1) = coeff p a - coeff p (a + 1) * r :=
 sorry
 
-@[simp] lemma quux {p : polynomial R} : p.coeff (p.nat_degree + 1) = 0 := sorry
+@[simp] lemma coeff_nat_degree_succ_eq_zero {p : polynomial R} : p.coeff (p.nat_degree + 1) = 0 :=
+coeff_eq_zero_of_nat_degree_lt (lt_add_one _)
 
 lemma sum_over_range' (p : polynomial R) {f : ℕ → R → S} (h : ∀ n, f n 0 = 0)
   (n : ℕ) (w : p.nat_degree < n) :
