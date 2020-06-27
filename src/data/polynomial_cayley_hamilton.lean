@@ -53,11 +53,23 @@ by rw [monomial_eq_smul_X, coeff_smul, coeff_X_pow, if_pos rfl, mul_one]
 @[simp] lemma mul_coeff_zero (p q : polynomial R) : coeff (p * q) 0 = coeff p 0 * coeff q 0 :=
 by simp [coeff_mul]
 
+lemma nat_degree_mul_le {p q : polynomial R} : nat_degree (p * q) ≤ nat_degree p + nat_degree q :=
+begin
+  sorry,
+end
+lemma nat_degree_X_sub_monomial_zero {r : R} : (X - monomial 0 r).nat_degree = 1 :=
+sorry
+
 lemma eval₂_mul_X_sub_monomial {p : polynomial R} {r : R} :
   (p * (X - monomial 0 r)).eval₂ f (f r) = 0 :=
 begin
   simp [eval₂],
-  rw sum_over_range' _ _ (p.nat_degree + 2) sorry,
+  have bound := calc
+    (p * (X - monomial 0 r)).nat_degree
+         ≤ p.nat_degree + (X - monomial 0 r).nat_degree : nat_degree_mul_le
+     ... = p.nat_degree + 1 : by rw nat_degree_X_sub_monomial_zero
+     ... < p.nat_degree + 2 : lt_add_one _,
+  rw sum_over_range' _ _ (p.nat_degree + 2) bound,
   swap,
   { simp [is_ring_hom.map_zero f], },
   rw sum_range_succ',
