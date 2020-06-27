@@ -53,8 +53,14 @@ as a linear map in the second factor.
 -/
 def to_fun_linear_right (a : A) : polynomial R →ₗ[R] polynomial A :=
 { to_fun := to_fun R A a,
-  map_smul' := sorry,
-  map_add' := sorry, }
+  map_smul' := λ r p, sorry,
+  map_add' := λ p q,
+  begin
+    simp only [to_fun],
+    rw finsupp.sum_add_index,
+    { sorry, },
+    { sorry, },
+  end, }
 
 /--
 (Implementation detail).
