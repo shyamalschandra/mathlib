@@ -28,8 +28,27 @@ lemma matrix_eq {X : Type*} [add_comm_monoid X] (m : matrix n n X) :
 @[elab_as_eliminator] protected lemma matrix.induction_on {X : Type*} [add_comm_monoid X] {M : matrix n n X → Prop} (m : matrix n n X)
   (h_add : ∀p q, M p → M q → M (p + q))
   (h_elementary : ∀ i j x, M (λ i' j', if i' = i ∧ j' = j then x else 0)) :
-  M m := sorry -- is_basis.repr
+  M m :=
+begin
+  have : m = ∑ k l : n, (λ i' j', if i' = k ∧ j' = l then m k l else 0),
+  { ext,
+    rw finset.sum_apply,
+    rw finset.sum_apply,
+    rw ← finset.sum_subset, swap 4, exact {i},
+    { norm_num },
+    { simp },
+    intros, norm_num at a, norm_num,
+    convert finset.sum_const_zero, ext, rw if_neg, tauto },
+  rw this,
+end
+#check finset.sum_apply
 
+example (f : n → n → R) :
+∑ i j : n, f i j = ∑ k : n × n, f k.fst k.snd :=
+begin
+
+end
+#check finset.sum_subset
 
 instance is_ring_hom_of_alg_hom
   {R : Type u} [comm_ring R] {A : Type v} [ring A] [algebra R A] {B : Type w} [ring B] [algebra R B]
@@ -50,7 +69,6 @@ begin
   convert eval₂_monomial _ _,
   { simp only [algebra.tensor_product.tmul_mul_tmul, one_pow, one_mul, matrix.mul_one, algebra.tensor_product.tmul_pow,
      algebra.tensor_product.include_left_apply, mul_eq_mul],
-    -- almost there: just use `R` bilinearity
     rw monomial_eq_smul_X,
     rw ← tensor_product.smul_tmul,
     congr, ext, simp },
@@ -63,6 +81,7 @@ lemma baz_coeff_apply_aux_2 (i j : n) (p : polynomial R) (k : ℕ) :
 begin
   apply polynomial.induction_on' p,
   { intros p q hp hq,
+    rw coeff_add,
     sorry, },
   { intros k x,
     rw baz_coeff_apply_aux_1,
