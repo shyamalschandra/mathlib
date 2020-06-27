@@ -122,13 +122,26 @@ lemma to_fun_linear_mul_tmul_mul (a₁ a₂ : A) (p₁ p₂ : polynomial R) :
   (to_fun_linear R A) ((a₁ * a₂) ⊗ₜ[R] p₁ * p₂) =
     (to_fun_linear R A) (a₁ ⊗ₜ[R] p₁) * (to_fun_linear R A) (a₂ ⊗ₜ[R] p₂) :=
 begin
-  sorry
+  intros, unfold to_fun_linear, simp only [lift.tmul],
+  dsimp [to_fun_bilinear, to_fun_linear_right, to_fun],
+  rw finsupp.sum_mul, simp_rw finsupp.mul_sum,
+  rw add_monoid_algebra.mul_def,
+  iterate 2 { rw finsupp.sum_sum_index _ _, swap, intro a, unfold algebra_map, simp,
+    swap, { intros, simp only [single_eq_C_mul_X, ring_hom.map_add, ring_hom.map_mul],
+      rw [← add_mul, ← mul_add] },
+    refine congr rfl _, ext, refine congr (congr rfl _) rfl },
+  simp only [single_eq_C_mul_X, finsupp.sum_single_index, zero_mul,
+    ring_hom.map_zero, mul_zero, ring_hom.map_mul],
+  rw pow_add,
+  sorry --ring
 end
 
 lemma to_fun_linear_algebra_map_tmul_one (r : R) :
   (to_fun_linear R A) ((algebra_map R A) r ⊗ₜ[R] 1) = (algebra_map R (polynomial A)) r :=
 begin
-  sorry
+  unfold to_fun_linear, simp only [lift.tmul],
+  dsimp [to_fun_bilinear, to_fun_linear_right, to_fun],
+  rw [← C_1, C_def, finsupp.sum_single_index]; rw single_eq_C_mul_X; unfold algebra_map; simp, refl
 end
 
 -- The following declaration is SLOOOOOOW
