@@ -97,8 +97,20 @@ as a bilinear function of two arguments.
 -/
 def to_fun_bilinear : A →ₗ[R] polynomial R →ₗ[R] polynomial A :=
 { to_fun := to_fun_linear_right R A,
-  map_smul' := sorry,
-  map_add' := sorry, }
+  map_smul' := by {
+    intros, unfold to_fun_linear_right,
+    congr, simp only [linear_map.coe_mk],
+    unfold to_fun finsupp.sum monomial,
+    simp_rw [finset.smul_sum, finsupp.smul_single,  ← algebra.smul_mul_assoc],
+    refl
+  },
+  map_add' := by {
+    intros, unfold to_fun_linear_right,
+    congr, simp only [linear_map.coe_mk],
+    unfold to_fun finsupp.sum monomial,
+    simp_rw [← finset.sum_add_distrib, ← finsupp.single_add, ← add_mul],
+    refl }
+   }
 
 /--
 (Implementation detail).
