@@ -22,13 +22,21 @@ begin
   -- Yuck... This will get there, but it is very painful.
   -- Surely there's a better way?
   simp [coeff_mul],
-  transitivity ∑ (x : ℕ × ℕ) in {(0, a+1), (1, a)}, coeff p x.1 * (coeff X x.2 - (monomial 0 r).coeff x.1),
+  transitivity ∑ (x : ℕ × ℕ) in {(a+1, 0), (a, 1)}, coeff p x.1 * (coeff X x.2 - (monomial 0 r).coeff x.2),
   apply finset.sum_bij_ne_zero (λ n _ _, n),
-  { intros x h₁ h₂, simp, sorry, },
-  sorry,
-  sorry,
-  sorry,
-  sorry,
+  { intros x h₁ h₂, simp, rw finset.nat.mem_antidiagonal at h₁,
+    have h₃ := ne_zero_of_mul_ne_zero_left h₂,
+    simp [single_eq_C_mul_X, coeff_C] at h₃,
+    --rw coeff_X at h,
+    by_cases x.snd = 0, left, rw h at h₁, ext, simp [← h₁], rw ← h, rw if_neg h at h₃,
+    by_cases 1 = x.snd, right, rw ← h at h₁, ext, apply nat.add_right_cancel h₁, rw h,
+    exfalso, apply h₃, rw [coeff_X, if_neg h], simp },
+  { tauto },
+  { intros, existsi b,
+    simp only [exists_prop, and_true, eq_self_iff_true, ne.def, nat.mem_antidiagonal],
+    split; simp only [mem_insert, mem_singleton] at H, cases H; rw H; simp, apply a_1 },
+  { intros, simp },
+  { intros, rw sub_eq_add_neg, conv_rhs {rw add_comm}, simp [single_eq_C_mul_X, coeff_C] },
 end
 
 @[simp] lemma coeff_nat_degree_succ_eq_zero {p : polynomial R} : p.coeff (p.nat_degree + 1) = 0 :=
@@ -66,10 +74,13 @@ by simp [coeff_mul]
 
 lemma nat_degree_mul_le {p q : polynomial R} : nat_degree (p * q) ≤ nat_degree p + nat_degree q :=
 begin
-  sorry,
+  apply nat_degree_le_of_degree_le, apply le_trans (degree_mul_le p q),
+  rw with_bot.coe_add, refine add_le_add _ _; apply degree_le_nat_degree
 end
+
+variable [nonzero R] --otherwise this nat_degree is 0
 lemma nat_degree_X_sub_monomial_zero {r : R} : (X - monomial 0 r).nat_degree = 1 :=
-sorry
+by { rw single_eq_C_mul_X, apply nat_degree_eq_of_degree_eq_some, simp }
 
 /--
 The evaluation map is not generally multiplicative when the coefficient ring is noncommutative,
