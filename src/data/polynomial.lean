@@ -738,7 +738,7 @@ is_semiring_hom.comp _ _
 @[simp] lemma map_monomial {n a} : (monomial n a).map f = monomial n (f a) :=
 begin
   dsimp only [map],
-  rw [eval₂_monomial, single_eq_C_mul_X]
+  rw [eval₂_monomial, single_eq_C_mul_X], refl,
 end
 
 @[simp] lemma map_zero : (0 : polynomial R).map f = 0 :=  eval₂_zero _ _
