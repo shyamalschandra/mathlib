@@ -118,6 +118,7 @@ lemma apply_eq_coeff : p n = coeff p n := rfl
 
 @[simp] lemma coeff_zero (n : ℕ) : coeff (0 : polynomial R) n = 0 := rfl
 
+-- FIXME rename `coeff_monomial`?
 lemma coeff_single : coeff (single n a) m = if n = m then a else 0 :=
 by { dsimp [single, finsupp.single], congr }
 

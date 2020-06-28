@@ -31,6 +31,19 @@ open algebra.tensor_product
 
 noncomputable theory
 
+-- TODO add appropriate other versions, and move
+lemma ite_add_zero {α : Type*} [add_monoid α] {P : Prop} [decidable P] {a b : α} :
+  ite P (a + b) 0 = ite P a 0 + ite P b 0 :=
+by { split_ifs; simp, }
+
+lemma ite_mul_zero_left {α : Type*} [semiring α] (P : Prop) [decidable P] (a b : α) :
+  ite P (a * b) 0 = ite P a 0 * b :=
+by { split_ifs; simp, }
+
+lemma ite_mul_zero_right {α : Type*} [semiring α] (P : Prop) [decidable P] (a b : α) :
+  ite P (a * b) 0 = a * ite P b 0 :=
+by { split_ifs; simp, }
+
 variables (R : Type u) [comm_ring R]
 variables (A : Type v) [ring A] [algebra R A]
 
@@ -118,22 +131,57 @@ as a linear map.
 def to_fun_linear : A ⊗[R] polynomial R →ₗ[R] polynomial A :=
 tensor_product.lift (to_fun_bilinear R A)
 
+section
+-- We apparently need to provide the decideable instance here in order to successfully rewrite by this lemma?
+lemma foo (p : polynomial R) (k : ℕ) (h : decidable (¬p.coeff k = 0)) (a : A) :
+  ite (¬coeff p k = 0) (a * (algebra_map R A) (coeff p k)) 0 = a * (algebra_map R A) (coeff p k) :=
+begin
+  haveI := h,
+  by_cases w : ¬p.coeff k = 0,
+  simp [w],
+  simp at w,
+  simp [w],
+end
+end
+
+-- TODO golf
+lemma thud (k : ℕ)
+  (a₁ a₂ : A)
+  (p₁ p₂ : polynomial R) :
+  a₁ * a₂ * (algebra_map R A) ((p₁ * p₂).coeff k) =
+    (finset.nat.antidiagonal k).sum
+      (λ (x : ℕ × ℕ),
+         a₁ * (algebra_map R A) (p₁.coeff x.fst) *
+           (a₂ * (algebra_map R A) (p₂.coeff x.snd))) :=
+begin
+  simp only [_root_.mul_assoc],
+  simp [algebra.commutes],
+  simp only [←finset.mul_sum],
+  simp only [_root_.mul_assoc],
+  simp only [←finset.mul_sum],
+  congr,
+  simp only [algebra.commutes (coeff p₂ _)],
+  simp only [coeff_mul],
+  simp only [ring_hom.map_sum, ring_hom.map_mul],
+end
+
+-- TODO golf
 lemma to_fun_linear_mul_tmul_mul (a₁ a₂ : A) (p₁ p₂ : polynomial R) :
   (to_fun_linear R A) ((a₁ * a₂) ⊗ₜ[R] p₁ * p₂) =
     (to_fun_linear R A) (a₁ ⊗ₜ[R] p₁) * (to_fun_linear R A) (a₂ ⊗ₜ[R] p₂) :=
 begin
-  intros, unfold to_fun_linear, simp only [lift.tmul],
+  dsimp [to_fun_linear],
+  simp only [lift.tmul],
   dsimp [to_fun_bilinear, to_fun_linear_right, to_fun],
-  rw finsupp.sum_mul, simp_rw finsupp.mul_sum,
-  rw add_monoid_algebra.mul_def,
-  iterate 2 { rw finsupp.sum_sum_index _ _, swap, intro a, unfold algebra_map, simp,
-    swap, { intros, simp only [single_eq_C_mul_X, ring_hom.map_add, ring_hom.map_mul],
-      rw [← add_mul, ← mul_add] },
-    refine congr rfl _, ext, refine congr (congr rfl _) rfl },
-  simp only [single_eq_C_mul_X, finsupp.sum_single_index, zero_mul,
-    ring_hom.map_zero, mul_zero, ring_hom.map_mul],
-  rw pow_add,
-  sorry --ring
+  ext k,
+  simp [coeff_sum, coeff_single],
+  dsimp [finsupp.sum], simp,
+  simp [coeff_mul, coeff_single],
+  simp [apply_eq_coeff],
+  simp only [ite_mul_zero_right (¬coeff p₂ _ = 0) (a₁ * (algebra_map R A) (coeff p₁ _))],
+  simp only [ite_mul_zero_left (¬coeff p₁ _ = 0) (a₁ * (algebra_map R A) (coeff p₁ _))],
+  simp only [foo],
+  simp only [thud],
 end
 
 lemma to_fun_linear_algebra_map_tmul_one (r : R) :
@@ -290,10 +338,7 @@ begin
   { apply_instance },
 end
 
--- TODO add appropriate other versions, and move
-lemma ite_add_zero {α : Type*} [add_monoid α] {P : Prop} [decidable P] {a b : α} :
-  ite P (a + b) 0 = ite P a 0 + ite P b 0 :=
-by { split_ifs; simp, }
+
 
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
   (i j : n) (p : polynomial R) (k : ℕ) :
