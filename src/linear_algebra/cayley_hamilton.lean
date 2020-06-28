@@ -10,6 +10,8 @@ import linear_algebra.nonsingular_inverse
 
 /-!
 The Cayley-Hamilton theorem, over a commutative ring.
+
+We use a nice proof from http://drorbn.net/AcademicPensieve/2015-12/CayleyHamilton.pdf
 -/
 
 noncomputable theory
@@ -70,28 +72,27 @@ theorem cayley_hamilton (M : matrix n n R) :
 begin
   -- We begin with the fact $χ_M(t) I = adjugate (t I - M) * (t I - M)$,
   -- as an identity in `matrix n n (polynomial R)`.
-  have := calc
+  have h := calc
     (characteristic_polynomial M) • (1 : matrix n n (polynomial R))
          = (characteristic_matrix M).det • (1 : matrix n n (polynomial R)) : rfl
      ... = adjugate (characteristic_matrix M) * (characteristic_matrix M)  : (adjugate_mul _).symm,
   -- Using the algebra isomorphism `matrix n n (polynomial R) ≃ₐ[R] polynomial (matrix n n R)`,
   -- we have the same identity in `polynomial (matrix n n R)`.
-  apply_fun matrix_polynomial_equiv_polynomial_matrix at this,
-  change _ = matrix_polynomial_equiv_polynomial_matrix (_ * _) at this,
-  simp only [matrix_polynomial_equiv_polynomial_matrix.map_mul] at this,
-  rw matrix_polynomial_equiv_polynomial_matrix_characteristic_matrix at this,
+  apply_fun matrix_polynomial_equiv_polynomial_matrix at h,
+  change _ = matrix_polynomial_equiv_polynomial_matrix (_ * _) at h,
+  simp only [matrix_polynomial_equiv_polynomial_matrix.map_mul] at h,
+  rw matrix_polynomial_equiv_polynomial_matrix_characteristic_matrix at h,
   -- Because the coefficient ring `matrix n n R` is non-commutative,
   -- evaluation at `M` is not multiplicative.
   -- However, any polynomial which is a product of the form $N * (t I - M)$
   -- is sent to zero, because the evaluation function puts the polynomial variable
   -- to the right of any coefficients.
-  apply_fun (λ p, p.eval₂ (ring_hom.id _) M) at this,
-  rw eval₂_mul_X_sub_C at this,
+  apply_fun (λ p, p.eval₂ (ring_hom.id _) M) at h,
+  rw eval₂_mul_X_sub_C at h,
   -- Now $χ_M (t) I$, when thought of as a polynomial of matrices
   -- and evaluated at some `N` is exactly $χ_M (N)$.
   -- Thus we have $χ_M(M) = 0$, which is the desired result.
-  rw matrix_polynomial_equiv_polynomial_matrix_smul_one at this,
-  rw eval₂_eq_eval_map at this ⊢,
-  simp at this,
-  exact this,
+  rw matrix_polynomial_equiv_polynomial_matrix_smul_one at h,
+  rw eval₂_eq_eval_map at h ⊢,
+  simpa using h,
 end
