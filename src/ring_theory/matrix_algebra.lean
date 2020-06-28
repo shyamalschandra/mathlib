@@ -139,13 +139,11 @@ begin
   simp only [algebra.algebra_map_eq_smul_one, smul_tmul, ←tmul_sum, (•), mul_boole],
   congr, ext,
   calc
-    (∑ (x : n × n), λ (i i_1 : n), ite ((i, i_1) = x) (M x.fst x.snd) 0) i j
-      = (∑ (x : n × n), λ (i_1 : n), ite ((i, i_1) = x) (M x.fst x.snd) 0) j : _
-     ... = (∑ (x : n × n), ite ((i, j) = x) (M x.fst x.snd) 0) : _
-     ... = M i j : _,
-  { apply congr_fun, dsimp, simp, },
-  { simp, },
-  { simp, },
+    (∑ x, λ i j, ite ((i, j) = x) (M x.1 x.2) 0) i j
+         = (∑ x, λ j, ite ((i, j) = x) (M x.1 x.2) 0) j : by simp
+     ... = ∑ x, ite ((i, j) = x) (M x.1 x.2) 0          : by simp
+     ... = M i j                                        : by simp,
+
 end
 
 lemma right_inv (M : matrix n n A) : (to_fun_alg_hom R A n) (inv_fun R A n M) = M :=
@@ -189,13 +187,6 @@ open matrix_equiv_tensor
   matrix_equiv_tensor R A n M =
     ∑ (p : n × n), M p.1 p.2 ⊗ₜ (λ i' j', if (i', j') = p then 1 else 0) :=
 rfl
-
--- TODO move, make `tmul_ite`.
-lemma ite_tmul {R M₁ M₂ : Type*} [comm_ring R] [add_comm_group M₁] [module R M₁] [add_comm_group M₂] [module R M₂] (x₁ : M₁) (x₂ : M₂)
-  (P : Prop) [decidable P] : ((if P then x₁ else 0) ⊗ₜ[R] x₂) = if P then (x₁ ⊗ₜ x₂) else 0 :=
-begin
-  split_ifs; simp
-end
 
 @[simp] lemma matrix_equiv_tensor_apply_elementary (i j : n) (x : A):
   matrix_equiv_tensor R A n (λ i' j', if i' = i ∧ j' = j then x else 0) =
