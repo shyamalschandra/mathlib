@@ -19,24 +19,23 @@ variables [is_ring_hom f]
 lemma foo {p : polynomial R} {r : R} {a : ℕ} :
   coeff (p * (X - monomial 0 r)) (a + 1) = coeff p a - coeff p (a + 1) * r :=
 begin
-  -- Yuck... This will get there, but it is very painful.
-  -- Surely there's a better way?
   simp [coeff_mul],
   transitivity ∑ (x : ℕ × ℕ) in {(a+1, 0), (a, 1)}, coeff p x.1 * (coeff X x.2 - (monomial 0 r).coeff x.2),
   apply finset.sum_bij_ne_zero (λ n _ _, n),
   { intros x h₁ h₂, simp, rw finset.nat.mem_antidiagonal at h₁,
     have h₃ := ne_zero_of_mul_ne_zero_left h₂,
     simp [single_eq_C_mul_X, coeff_C] at h₃,
-    --rw coeff_X at h,
     by_cases x.snd = 0, left, rw h at h₁, ext, simp [← h₁], rw ← h, rw if_neg h at h₃,
     by_cases 1 = x.snd, right, rw ← h at h₁, ext, apply nat.add_right_cancel h₁, rw h,
-    exfalso, apply h₃, rw [coeff_X, if_neg h], simp },
-  { tauto },
-  { intros, existsi b,
+    exfalso, apply h₃, rw [coeff_X, if_neg h], simp, },
+  { tauto, },
+  { intros b mem ne, use b,
     simp only [exists_prop, and_true, eq_self_iff_true, ne.def, nat.mem_antidiagonal],
-    split; simp only [mem_insert, mem_singleton] at H, cases H; rw H; simp, apply a_1 },
-  { intros, simp },
-  { intros, rw sub_eq_add_neg, conv_rhs {rw add_comm}, simp [single_eq_C_mul_X, coeff_C] },
+    split; simp only [mem_insert, mem_singleton] at mem,
+    { rcases mem with rfl|rfl; simp, },
+    { exact ne, }, },
+  { intros, simp, },
+  { intros, rw sub_eq_add_neg, conv_rhs {rw add_comm}, simp [single_eq_C_mul_X, coeff_C], },
 end
 
 @[simp] lemma coeff_nat_degree_succ_eq_zero {p : polynomial R} : p.coeff (p.nat_degree + 1) = 0 :=
@@ -85,8 +84,20 @@ lemma nat_degree_X_sub_monomial_zero {r : R} : (X - monomial 0 r).nat_degree = 1
 by { rw single_eq_C_mul_X, apply nat_degree_eq_of_degree_eq_some, simp }
 end
 
+lemma eq_zero_of_eq_zero (h : (0 : R) = (1 : R)) (p : polynomial R) : p = 0 :=
+by rw [←one_smul R p, ←h, zero_smul]
+
 lemma nat_degree_X_sub_monomial_zero_le {r : R} : (X - monomial 0 r).nat_degree ≤ 1 :=
-sorry
+begin
+  classical,
+  by_cases h : (0 : R) = (1 : R),
+  { calc (X - monomial 0 r).nat_degree
+         = (0 : polynomial R).nat_degree : congr_arg nat_degree (eq_zero_of_eq_zero h _)
+     ... = 0 : nat_degree_zero
+     ... ≤ 1 : zero_le 1, },
+  { haveI : nonzero R := ⟨h⟩,
+    exact le_of_eq nat_degree_X_sub_monomial_zero, }
+end
 
 /--
 The evaluation map is not generally multiplicative when the coefficient ring is noncommutative,
