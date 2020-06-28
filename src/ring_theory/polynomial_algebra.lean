@@ -245,11 +245,23 @@ lemma matrix_eq {X : Type*} [add_comm_monoid X] (m : matrix n n X) :
   m = ∑ (x : n × n), (λ i j, if (i, j) = x then m i j else 0) := by { ext, simp }
 
 -- TODO move
--- @[elab_as_eliminator] protected lemma matrix.induction_on
---   {X : Type*} [add_comm_monoid X] {M : matrix n n X → Prop} (m : matrix n n X)
---   (h_add : ∀p q, M p → M q → M (p + q))
---   (h_elementary : ∀ i j x, M (λ i' j', if i' = i ∧ j' = j then x else 0)) :
---   M m := sorry -- is_basis.repr
+@[elab_as_eliminator] protected lemma matrix.induction_on {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
+  (h_add : ∀p q, M p → M q → M (p + q))
+  (h_elementary : ∀ i j x, M (λ i' j', if i' = i ∧ j' = j then x else 0)) :
+  M m :=
+begin
+  rw matrix_eq_sum_elementary m,
+  conv {congr, congr, skip, funext, },
+  rw ← sum_product',
+  apply sum_induction _ M h_add,
+  { have := h_elementary (arbitrary n) (arbitrary n) 0,
+    simp at this; exact this },
+  intros, cases x with i j, dsimp,
+  have := h_elementary i j (m i j),
+  unfold elementary_matrix,
+  convert this,
+  ext, dsimp, simp [mul_ite],
+end
 
 -- TODO move
 instance is_ring_hom_of_alg_hom

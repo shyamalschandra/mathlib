@@ -78,9 +78,15 @@ begin
   rw with_bot.coe_add, refine add_le_add _ _; apply degree_le_nat_degree
 end
 
+section
 variable [nonzero R] --otherwise this nat_degree is 0
+
 lemma nat_degree_X_sub_monomial_zero {r : R} : (X - monomial 0 r).nat_degree = 1 :=
 by { rw single_eq_C_mul_X, apply nat_degree_eq_of_degree_eq_some, simp }
+end
+
+lemma nat_degree_X_sub_monomial_zero_le {r : R} : (X - monomial 0 r).nat_degree ≤ 1 :=
+sorry
 
 /--
 The evaluation map is not generally multiplicative when the coefficient ring is noncommutative,
@@ -94,7 +100,7 @@ begin
   have bound := calc
     (p * (X - monomial 0 r)).nat_degree
          ≤ p.nat_degree + (X - monomial 0 r).nat_degree : nat_degree_mul_le
-     ... = p.nat_degree + 1 : by rw nat_degree_X_sub_monomial_zero
+     ... ≤ p.nat_degree + 1 : add_le_add_left nat_degree_X_sub_monomial_zero_le _
      ... < p.nat_degree + 2 : lt_add_one _,
   rw sum_over_range' _ _ (p.nat_degree + 2) bound,
   swap,
