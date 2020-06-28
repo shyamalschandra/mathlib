@@ -380,21 +380,16 @@ end
 
 -- by { unfold elementary_matrix, ext, dsimp, simp }
 
+
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
   (i j : n) (p : polynomial R) (k : ℕ) :
   coeff (matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j p)) k =
     elementary_matrix i j (coeff p k) :=
 begin
   apply polynomial.induction_on' p,
-  { intros p q hp hq,
-    ext i' j',
-    -- simp only [ite_add_zero],
-    -- erw matrix_polynomial_equiv_polynomial_matrix.map_add,
-    simp only [hp, hq, coeff_add, add_val, elementary_matrix_add],
-    have : ⇑matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j p + elementary_matrix i j q) = ⇑matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j p) + ⇑matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j q),
-    rw ring_hom.map_add,
-    -- rw elementary_matrix_add,
-    split_ifs; simp, },
+  { intros p q hp hq, ext,
+    simp [hp, hq, coeff_add, add_val, elementary_matrix_add],
+    },
   { intros k x,
     rw matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_1,
     simp [coeff_single],
@@ -409,7 +404,7 @@ begin
   { intros p q hp hq, simp [hp, hq], },
   { intros i' j' x,
     erw matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2,
-    dsimp,
+    dsimp [elementary_matrix],
     split_ifs,
     { rcases h with ⟨rfl, rfl⟩, simp [elementary_matrix], },
     { simp [elementary_matrix, h], }, },
