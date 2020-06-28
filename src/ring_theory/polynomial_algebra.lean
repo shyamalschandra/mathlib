@@ -308,10 +308,6 @@ noncomputable def matrix_polynomial_equiv_polynomial_matrix :
   (algebra.tensor_product.comm R _ _)).trans
   (polynomial_equiv_tensor R (matrix n n R)).symm
 
--- maybe we don't need this?
-lemma matrix_eq {X : Type*} [add_comm_monoid X] (m : matrix n n X) :
-  m = ∑ (x : n × n), (λ i j, if (i, j) = x then m i j else 0) := by { ext, simp }
-
 open finset
 
 -- TODO move
@@ -337,8 +333,8 @@ is_ring_hom f :=
 { map_one := by simp, map_mul := by simp, map_add := by simp }
 
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_1 (i j : n) (k : ℕ) (x : R) :
-  matrix_polynomial_equiv_polynomial_matrix (λ i' j', if i' = i ∧ j' = j then monomial k x else 0) =
-    monomial k (λ i' j', if i' = i ∧ j' = j then x else 0) :=
+  matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j $ monomial k x) =
+    monomial k (elementary_matrix i j x) :=
 begin
   dsimp only [matrix_polynomial_equiv_polynomial_matrix, alg_equiv.trans_apply],
   simp only [matrix_equiv_tensor_apply_elementary],
@@ -360,14 +356,14 @@ end
 
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
   (i j : n) (p : polynomial R) (k : ℕ) :
-  coeff (matrix_polynomial_equiv_polynomial_matrix (λ i' j', if i' = i ∧ j' = j then p else 0)) k =
-    (λ i' j', if i' = i ∧ j' = j then coeff p k else 0) :=
+  coeff (matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j p)) k =
+    elementary_matrix i j (coeff p k) :=
 begin
   apply polynomial.induction_on' p,
   { intros p q hp hq,
     ext i' j',
-    simp only [ite_add_zero],
-    erw matrix_polynomial_equiv_polynomial_matrix.map_add,
+    -- simp only [ite_add_zero],
+    -- erw matrix_polynomial_equiv_polynomial_matrix.map_add,
     simp only [hp, hq, coeff_add, add_val],
     split_ifs; simp, },
   { intros k x,
