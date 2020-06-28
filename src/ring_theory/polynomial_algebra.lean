@@ -277,7 +277,7 @@ open matrix
 open_locale big_operators
 
 variables {R}
-variables {n : Type w} [fintype n] [decidable_eq n]
+variables {n : Type w} [fintype n] [decidable_eq n] [inhabited n]
 
 /--
 The algebra isomorphism stating "matrices of polynomials are the same as polynomials of matrices".
@@ -295,20 +295,16 @@ lemma matrix_eq {X : Type*} [add_comm_monoid X] (m : matrix n n X) :
 -- TODO move
 @[elab_as_eliminator] protected lemma matrix.induction_on {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
   (h_add : ∀p q, M p → M q → M (p + q))
-  (h_elementary : ∀ i j x, M (λ i' j', if i' = i ∧ j' = j then x else 0)) :
+  (h_elementary : ∀ i j x, M (elementary_matrix i j x)) :
   M m :=
 begin
   rw matrix_eq_sum_elementary m,
-  conv {congr, congr, skip, funext, },
-  rw ← sum_product',
-  apply sum_induction _ M h_add,
+  rw ← finset.sum_product',
+  apply finset.sum_induction,
+  { exact h_add },
   { have := h_elementary (arbitrary n) (arbitrary n) 0,
-    simp at this; exact this },
-  intros, cases x with i j, dsimp,
-  have := h_elementary i j (m i j),
-  unfold elementary_matrix,
-  convert this,
-  ext, dsimp, simp [mul_ite],
+    revert this, simp },
+  intros, apply h_elementary,
 end
 
 -- TODO move

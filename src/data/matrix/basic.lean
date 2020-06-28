@@ -459,7 +459,12 @@ def elementary_matrix (i : m) (j : n) (a : α) : matrix m n α :=
 
 @[simp] lemma smul_elementary_matrix (i : m) (j : n) (a b : α) :
 b • elementary_matrix i j a = elementary_matrix i j (b • a) :=
-by {unfold elementary_matrix, ext, dsimp, simp}
+by { unfold elementary_matrix, ext, dsimp, simp }
+
+@[simp] lemma elementary_matrix_zero (i : m) (j : n) :
+elementary_matrix i j (0 : α) = 0 :=
+by { unfold elementary_matrix, ext, simp }
+
 
 lemma matrix_eq_sum_elementary (x : matrix n m α) :
 x = ∑ (i : n) (j : m), elementary_matrix i j (x i j) :=
