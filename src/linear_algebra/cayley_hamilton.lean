@@ -79,9 +79,8 @@ begin
   -- Using the algebra isomorphism `matrix n n (polynomial R) ≃ₐ[R] polynomial (matrix n n R)`,
   -- we have the same identity in `polynomial (matrix n n R)`.
   apply_fun matrix_polynomial_equiv_polynomial_matrix at h,
-  -- change _ = matrix_polynomial_equiv_polynomial_matrix (_ * _) at h,
-  simp only [matrix_polynomial_equiv_polynomial_matrix.map_mul] at h,
-  rw matrix_polynomial_equiv_polynomial_matrix_characteristic_matrix at h,
+  simp only [matrix_polynomial_equiv_polynomial_matrix.map_mul,
+    matrix_polynomial_equiv_polynomial_matrix_characteristic_matrix] at h,
   -- Because the coefficient ring `matrix n n R` is non-commutative,
   -- evaluation at `M` is not multiplicative.
   -- However, any polynomial which is a product of the form $N * (t I - M)$
