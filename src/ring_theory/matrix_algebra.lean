@@ -186,14 +186,6 @@ open matrix_equiv_tensor
     ∑ (p : n × n), M p.1 p.2 ⊗ₜ (elementary_matrix p.1 p.2 1) :=
 rfl
 
--- TODO move, make `tmul_ite`.
-
-lemma ite_tmul {R M₁ M₂ : Type*} [comm_ring R] [add_comm_group M₁] [module R M₁] [add_comm_group M₂] [module R M₂] (x₁ : M₁) (x₂ : M₂)
-  (P : Prop) [decidable P] : ((if P then x₁ else 0) ⊗ₜ[R] x₂) = if P then (x₁ ⊗ₜ x₂) else 0 :=
-begin
-  split_ifs; simp
-end
-
 @[simp] lemma matrix_equiv_tensor_apply_elementary (i j : n) (x : A):
   matrix_equiv_tensor R A n (elementary_matrix i j x) =
     x ⊗ₜ (elementary_matrix i j 1) :=

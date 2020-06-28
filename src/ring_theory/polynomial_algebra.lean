@@ -23,6 +23,7 @@ coeff (matrix_polynomial_equiv_polynomial_matrix m) k i j = coeff (m i j) k
 
 universes u v w
 
+
 open_locale tensor_product
 
 open polynomial
