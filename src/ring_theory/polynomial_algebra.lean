@@ -204,7 +204,7 @@ polynomial_algebra.lean:142:4: information
 decl post-processing of to_fun_alg_hom took 71ms
 -/
 
-set_option profiler true
+-- set_option profiler true
 
 /--
 (Implementation detail).
@@ -215,6 +215,9 @@ alg_hom_of_linear_map_tensor_product (to_fun_linear R A)
 (to_fun_linear_mul_tmul_mul R A)
 (to_fun_linear_algebra_map_tmul_one R A)
 
+@[simp] lemma to_fun_alg_hom_apply_tmul (a : A) (p : polynomial R) :
+  to_fun_alg_hom R A (a ⊗ₜ[R] p) = p.sum (λ n r, monomial n (a * (algebra_map R A) r)) :=
+by simp [to_fun_alg_hom, to_fun_linear, to_fun_bilinear, to_fun_linear_right, to_fun]
 
 -- next one is also relatively slow
 /-
@@ -237,6 +240,23 @@ The bare function `polynomial A → A ⊗[R] polynomial R`.
 def inv_fun (p : polynomial A) : A ⊗[R] polynomial R :=
 p.eval₂ include_left ((1 : A) ⊗ₜ[R] (X : polynomial R))
 
+lemma left_inv (x : A ⊗ polynomial R) :
+  inv_fun R A ((to_fun_alg_hom R A) x) = x :=
+begin
+  apply tensor_product.induction_on _ _ x,
+  { simp [inv_fun], },
+  { intros a p, simp [inv_fun], sorry, },
+  { sorry, },
+end
+
+lemma right_inv (x : polynomial A) :
+  (to_fun_alg_hom R A) (inv_fun R A x) = x :=
+begin
+  apply polynomial.induction_on' x,
+  { intros p q hp hq, sorry, },
+  { intros n a, simp [inv_fun], sorry, }
+end
+
 /--
 (Implementation detail)
 
@@ -245,8 +265,8 @@ The equivalence, ignoring the algebra structure, `(A ⊗[R] polynomial R) ≃ po
 def equiv : (A ⊗[R] polynomial R) ≃ polynomial A :=
 { to_fun := to_fun_alg_hom R A,
   inv_fun := inv_fun R A,
-  left_inv := sorry,
-  right_inv := sorry, }
+  left_inv := left_inv R A,
+  right_inv := right_inv R A, }
 
 end polynomial_equiv_tensor
 
@@ -291,6 +311,8 @@ noncomputable def matrix_polynomial_equiv_polynomial_matrix :
 -- maybe we don't need this?
 lemma matrix_eq {X : Type*} [add_comm_monoid X] (m : matrix n n X) :
   m = ∑ (x : n × n), (λ i j, if (i, j) = x then m i j else 0) := by { ext, simp }
+
+open finset
 
 -- TODO move
 @[elab_as_eliminator] protected lemma matrix.induction_on {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)

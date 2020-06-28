@@ -333,6 +333,10 @@ def alg_hom_of_linear_map_tensor_product
   commutes' := λ r, by simp [w₂],
   .. f }
 
+@[simp]
+lemma alg_hom_of_linear_map_tensor_product_apply (f w₁ w₂ x) :
+  (alg_hom_of_linear_map_tensor_product f w₁ w₂ : A ⊗[R] B →ₐ[R] C) x = f x := rfl
+
 /--
 Build an algebra equivalence from a linear equivalence out of a tensor product,
 and evidence of multiplicativity on pure tensors.

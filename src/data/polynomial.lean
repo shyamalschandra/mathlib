@@ -269,7 +269,7 @@ C.is_semiring_hom
 lemma C_pow : C (a ^ n) = C a ^ n := C.map_pow a n
 
 @[simp]
-lemma nat_cast_eq_C (n : ℕ) : C (n : R) = (n : polynomial R) :=
+lemma C_eq_nat_cast (n : ℕ) : C (n : R) = (n : polynomial R) :=
 C.map_nat_cast n
 
 end C
@@ -361,7 +361,7 @@ def eval : R → polynomial R → R := eval₂ id
 @[simp] lemma eval_C : (C a).eval x = a := eval₂_C _ _
 
 @[simp] lemma eval_nat_cast {n : ℕ} : (n : polynomial R).eval x = n :=
-by simp only [←nat_cast_eq_C, eval_C]
+by simp only [←C_eq_nat_cast, eval_C]
 
 @[simp] lemma eval_X : X.eval x = x := eval₂_X _ _
 
@@ -649,7 +649,7 @@ end
 @[simp] lemma nat_degree_one : nat_degree (1 : polynomial R) = 0 := nat_degree_C 1
 
 @[simp] lemma nat_degree_nat_cast (n : ℕ) : nat_degree (n : polynomial R) = 0 :=
-by simp only [←nat_cast_eq_C, nat_degree_C]
+by simp only [←C_eq_nat_cast, nat_degree_C]
 
 @[simp] lemma degree_monomial (n : ℕ) (ha : a ≠ 0) : degree (C a * X ^ n) = n :=
 by rw [← single_eq_C_mul_X, degree, support_single_ne_zero ha]; refl
@@ -1139,14 +1139,16 @@ polynomial.induction_on p
   (by simp [is_semiring_hom.map_mul f,
     is_semiring_hom.map_pow f, pow_succ', (mul_assoc _ _ _).symm] {contextual := tt})
 
-end map
-
-section map
-variables [comm_semiring S]
-variables (f : R →+* S)
-
--- FIXME this should be true without any commutativity assumptions.
-lemma eval_map (x : S) : (p.map f).eval x = p.eval₂ f x := eval₂_map _ _ _
+lemma eval_map (x : S) : (p.map f).eval x = p.eval₂ f x :=
+begin
+  convert finsupp.sum_map_range_index _,
+  work_on_goal 1 { exact ring_hom.map_zero f, },
+  work_on_goal 1 { intro a, simp only [id.def, zero_mul], },
+  { change map f p = map_range f _ p,
+    ext,
+    rw map_range_apply,
+    exact coeff_map f a, },
+end
 
 end map
 
@@ -1598,7 +1600,7 @@ section ring
 variables [ring R] {p q : polynomial R}
 
 @[simp]
-lemma int_cast_eq_C (n : ℤ) : C ↑n = (n : polynomial R) :=
+lemma C_eq_int_cast (n : ℤ) : C ↑n = (n : polynomial R) :=
 (C : R →+* _).map_int_cast n
 
 lemma C_neg : C (-a) = -C a := ring_hom.map_neg C a
@@ -1626,7 +1628,7 @@ degree_neg q ▸ degree_add_le p (-q)
 by simp [nat_degree]
 
 @[simp] lemma nat_degree_int_cast (n : ℤ) : nat_degree (n : polynomial R) = 0 :=
-by simp only [←int_cast_eq_C, nat_degree_C]
+by simp only [←C_eq_int_cast, nat_degree_C]
 
 @[simp] lemma coeff_neg (p : polynomial R) (n : ℕ) : coeff (-p) n = -coeff p n := rfl
 
@@ -1634,7 +1636,21 @@ by simp only [←int_cast_eq_C, nat_degree_C]
 lemma coeff_sub (p q : polynomial R) (n : ℕ) : coeff (p - q) n = coeff p n - coeff q n := rfl
 
 @[simp] lemma eval_int_cast {n : ℤ} {x : R} : (n : polynomial R).eval x = n :=
-by simp only [←int_cast_eq_C, eval_C]
+by simp only [←C_eq_int_cast, eval_C]
+
+@[simp] lemma eval₂_neg {S} [ring S] (f : R → S) [is_ring_hom f] {x : S} :
+  (-p).eval₂ f x = -p.eval₂ f x :=
+by rw [eq_neg_iff_add_eq_zero, ←eval₂_add, add_left_neg, eval₂_zero]
+
+@[simp] lemma eval₂_sub {S} [ring S] (f : R → S) [is_ring_hom f] {x : S} :
+  (p - q).eval₂ f x = p.eval₂ f x - q.eval₂ f x :=
+by rw [sub_eq_add_neg, eval₂_add, eval₂_neg, sub_eq_add_neg]
+
+@[simp] lemma eval_neg (p : polynomial R) (x : R) : (-p).eval x = -p.eval x :=
+eval₂_neg _
+
+@[simp] lemma eval_sub (p q : polynomial R) (x : R) : (p - q).eval x = p.eval x - q.eval x :=
+eval₂_sub _
 
 end ring
 
@@ -1647,22 +1663,6 @@ instance eval₂.is_ring_hom {S} [comm_ring S]
 by apply is_ring_hom.of_semiring
 
 instance eval.is_ring_hom {x : R} : is_ring_hom (eval x) := eval₂.is_ring_hom _
-
--- FIXME the next four lemmas don't essentially need commutativity, but will need new proofs.
-
-@[simp] lemma eval₂_neg {S} [comm_ring S] (f : R → S) [is_ring_hom f] {x : S} :
-  (-p).eval₂ f x = -p.eval₂ f x :=
-is_ring_hom.map_neg _
-
-@[simp] lemma eval₂_sub {S} [comm_ring S] (f : R → S) [is_ring_hom f] {x : S} :
-  (p - q).eval₂ f x = p.eval₂ f x - q.eval₂ f x :=
-is_ring_hom.map_sub _
-
-@[simp] lemma eval_neg (p : polynomial R) (x : R) : (-p).eval x = -p.eval x :=
-is_ring_hom.map_neg _
-
-@[simp] lemma eval_sub (p q : polynomial R) (x : R) : (p - q).eval x = p.eval x - q.eval x :=
-is_ring_hom.map_sub _
 
 end comm_ring
 
