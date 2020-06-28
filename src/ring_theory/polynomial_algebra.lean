@@ -406,9 +406,11 @@ begin
   apply matrix.induction_on m,
   { intros p q hp hq, simp [hp, hq], },
   { intros i' j' x,
-    rw matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2,
+    erw matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2,
     dsimp,
-    split_ifs; simp },
+    split_ifs,
+    { rcases h with ⟨rfl, rfl⟩, simp [elementary_matrix], },
+    { simp [elementary_matrix, h], }, },
 end
 
 lemma matrix_polynomial_equiv_polynomial_matrix_smul_one (p : polynomial R) :
