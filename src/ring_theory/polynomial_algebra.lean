@@ -326,26 +326,6 @@ noncomputable def matrix_polynomial_equiv_polynomial_matrix :
 open finset
 
 -- TODO move
-@[elab_as_eliminator] protected lemma matrix.induction_on'
-  {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
-  (h_zero : M 0)
-  (h_add : ∀p q, M p → M q → M (p + q))
-  (h_elementary : ∀ i j x, M (elementary_matrix i j x)) :
-  M m :=
-begin
-  rw [matrix_eq_sum_elementary m, ← finset.sum_product'],
-  apply finset.sum_induction _ _ h_add h_zero,
-  { intros, apply h_elementary, }
-end
-
-@[elab_as_eliminator] protected lemma matrix.induction_on
-  [inhabited n] {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
-  (h_add : ∀p q, M p → M q → M (p + q))
-  (h_elementary : ∀ i j x, M (elementary_matrix i j x)) :
-  M m :=
-matrix.induction_on' m (by { simpa using h_elementary (arbitrary n) (arbitrary n) 0, }) h_add h_elementary
-
--- TODO move
 instance is_ring_hom_of_alg_hom
   {R : Type u} [comm_ring R] {A : Type v} [ring A] [algebra R A] {B : Type w} [ring B] [algebra R B]
   (f : A →ₐ[R] B) :
