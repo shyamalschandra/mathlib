@@ -454,11 +454,15 @@ lemma vec_mul_vec_eq (w : m → α) (v : n → α) :
 by { ext i j, simp [vec_mul_vec, mul_val], refl }
 
 variables [decidable_eq m] [decidable_eq n]
-def elementary_matrix (i : m) (j : n) : matrix m n α :=
-(λ i' j', if i' = i ∧ j' = j then 1 else 0)
+def elementary_matrix (i : m) (j : n) (a : α) : matrix m n α :=
+(λ i' j', if i' = i ∧ j' = j then a else 0)
+
+@[simp] lemma smul_elementary_matrix (i : m) (j : n) (a b : α) :
+b • elementary_matrix i j a = elementary_matrix i j (b • a) :=
+by {unfold elementary_matrix, ext, dsimp, simp}
 
 lemma matrix_eq_sum_elementary (x : matrix n m α) :
-x = ∑ (i : n) (j : m), (x i j) • elementary_matrix i j :=
+x = ∑ (i : n) (j : m), elementary_matrix i j (x i j) :=
 begin
   ext, iterate 2 {rw finset.sum_apply},
   rw ← finset.sum_subset, swap 4, exact {i},
@@ -471,7 +475,7 @@ begin
 end
 
 lemma elementary_eq_basis_mul_basis (i : m) (j : n) :
-elementary_matrix i j = vec_mul_vec (λ i', ite (i = i') 1 0) (λ j', ite (j = j') 1 0) :=
+elementary_matrix i j 1 = vec_mul_vec (λ i', ite (i = i') 1 0) (λ j', ite (j = j') 1 0) :=
 begin
   ext, norm_num [elementary_matrix, vec_mul_vec],
   split_ifs; tauto,
