@@ -13,8 +13,7 @@ section ring
 variables [ring R]
 
 variables [ring S]
-variables (f : R → S) (x : S)
-variables [is_ring_hom f]
+variables (f : R →+* S) (x : S)
 
 lemma foo {p : polynomial R} {r : R} {a : ℕ} :
   coeff (p * (X - monomial 0 r)) (a + 1) = coeff p a - coeff p (a + 1) * r :=
@@ -130,10 +129,10 @@ end
 
 lemma eval₂_mul_X_sub_monomial' {p : polynomial R} (r : R) :
   (p * (X - monomial 0 r)).eval₂ (ring_hom.id _) r = 0 :=
-eval₂_mul_X_sub_monomial id
+eval₂_mul_X_sub_monomial _
 
 lemma eval₂_mul_X_sub_C {p : polynomial R} (r : R) :
   (p * (X - C r)).eval₂ (ring_hom.id _) r = 0 :=
-eval₂_mul_X_sub_monomial id
+eval₂_mul_X_sub_monomial _
 
 end ring

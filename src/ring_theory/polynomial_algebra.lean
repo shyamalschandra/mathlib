@@ -246,6 +246,7 @@ p.eval₂
 lemma inv_fun_add {p q} : inv_fun R A (p + q) = inv_fun R A p + inv_fun R A q :=
 by simp only [inv_fun, eval₂_add]
 
+-- TODO golf
 lemma left_inv (x : A ⊗ polynomial R) :
   inv_fun R A ((to_fun_alg_hom R A) x) = x :=
 begin
@@ -255,8 +256,14 @@ begin
     simp only [to_fun_alg_hom_apply_tmul],
     simp only [eval₂_sum],
     simp,
-    -- hopefully "just algebra" from there
-    sorry,
+    simp only [←algebra.commutes],
+    simp only [←algebra.smul_def''],
+    simp only [smul_tmul],
+    simp only [finsupp.sum],
+    simp only [←tmul_sum],
+    conv_rhs { rw [←sum_C_mul_X_eq p], },
+    simp only [algebra.smul_def''],
+    refl,
     },
   { intros p q hp hq,
     simp only [alg_hom.map_add, inv_fun_add, hp, hq], },
@@ -300,7 +307,8 @@ alg_equiv.symm { ..(polynomial_equiv_tensor.to_fun_alg_hom R A), ..(polynomial_e
 
 @[simp]
 lemma polynomial_equiv_tensor_apply (p : polynomial A) :
-  polynomial_equiv_tensor R A p = p.eval₂ include_left ((1 : A) ⊗ₜ[R] (X : polynomial R)) :=
+  polynomial_equiv_tensor R A p =
+    p.eval₂ (include_left : A →ₐ[R] A ⊗[R] polynomial R) ((1 : A) ⊗ₜ[R] (X : polynomial R)) :=
 rfl
 
 @[simp]
@@ -365,16 +373,13 @@ begin
   convert algebra.tensor_product.comm_tmul _ _ _ _ _,
   simp only [polynomial_equiv_tensor_apply],
   convert eval₂_monomial _ _,
-  { simp only [algebra.tensor_product.tmul_mul_tmul, one_pow, _root_.one_mul, matrix.mul_one,
-     algebra.tensor_product.tmul_pow, algebra.tensor_product.include_left_apply, mul_eq_mul],
-    -- almost there: just use `R` bilinearity
-    rw monomial_eq_smul_X,
-    rw ← tensor_product.smul_tmul,
-    congr, ext, simp },
-  { apply_instance },
+  simp only [algebra.tensor_product.tmul_mul_tmul, one_pow, _root_.one_mul, matrix.mul_one,
+    algebra.tensor_product.tmul_pow, algebra.tensor_product.include_left_apply, mul_eq_mul],
+  -- almost there: just use `R` bilinearity
+  rw monomial_eq_smul_X,
+  rw ← tensor_product.smul_tmul,
+  congr, ext, simp, dsimp, simp,
 end
-
-
 
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
   (i j : n) (p : polynomial R) (k : ℕ) :
