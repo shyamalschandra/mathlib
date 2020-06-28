@@ -377,6 +377,9 @@ begin
   congr, ext, simp, dsimp, simp,
 end
 
+
+-- by { unfold elementary_matrix, ext, dsimp, simp }
+
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
   (i j : n) (p : polynomial R) (k : ℕ) :
   coeff (matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j p)) k =
@@ -387,7 +390,10 @@ begin
     ext i' j',
     -- simp only [ite_add_zero],
     -- erw matrix_polynomial_equiv_polynomial_matrix.map_add,
-    simp only [hp, hq, coeff_add, add_val],
+    simp only [hp, hq, coeff_add, add_val, elementary_matrix_add],
+    have : ⇑matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j p + elementary_matrix i j q) = ⇑matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j p) + ⇑matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j q),
+    rw ring_hom.map_add,
+    -- rw elementary_matrix_add,
     split_ifs; simp, },
   { intros k x,
     rw matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_1,
