@@ -238,23 +238,41 @@ The bare function `polynomial A → A ⊗[R] polynomial R`.
 (We don't need to show that it's an algebra map, thankfully --- just that it's an inverse.)
 -/
 def inv_fun (p : polynomial A) : A ⊗[R] polynomial R :=
-p.eval₂ include_left ((1 : A) ⊗ₜ[R] (X : polynomial R))
+p.eval₂
+  (include_left : A →ₐ[R] A ⊗[R] polynomial R)
+  ((1 : A) ⊗ₜ[R] (X : polynomial R))
+
+@[simp]
+lemma inv_fun_add {p q} : inv_fun R A (p + q) = inv_fun R A p + inv_fun R A q :=
+by simp only [inv_fun, eval₂_add]
 
 lemma left_inv (x : A ⊗ polynomial R) :
   inv_fun R A ((to_fun_alg_hom R A) x) = x :=
 begin
   apply tensor_product.induction_on _ _ x,
   { simp [inv_fun], },
-  { intros a p, simp [inv_fun], sorry, },
-  { sorry, },
+  { intros a p, dsimp only [inv_fun],
+    simp only [to_fun_alg_hom_apply_tmul],
+    simp only [eval₂_sum],
+    simp,
+    -- hopefully "just algebra" from there
+    sorry,
+    },
+  { intros p q hp hq,
+    simp only [alg_hom.map_add, inv_fun_add, hp, hq], },
 end
 
 lemma right_inv (x : polynomial A) :
   (to_fun_alg_hom R A) (inv_fun R A x) = x :=
 begin
   apply polynomial.induction_on' x,
-  { intros p q hp hq, sorry, },
-  { intros n a, simp [inv_fun], sorry, }
+  { intros p q hp hq, simp only [inv_fun_add, alg_hom.map_add, hp, hq], },
+  { intros n a,
+    simp only [inv_fun],
+    simp only [eval₂_monomial],
+    simp,
+    rw [←monomial_one_eq_X_pow],
+    rw [finsupp.sum_single_index]; simp, }
 end
 
 /--

@@ -311,7 +311,7 @@ section eval₂
 variables [semiring S]
 
 section
-variables (f : R → S) (x : S)
+variables (f : R →+* S) (x : S)
 
 /-- Evaluate a polynomial `p` given a ring hom `f` from the scalar ring
   to the target and a value `x` for the variable in the target -/
@@ -320,10 +320,6 @@ p.sum (λ e a, f a * x ^ e)
 
 @[simp] lemma eval₂_zero : (0 : polynomial R).eval₂ f x = 0 :=
 finsupp.sum_zero_index
-end
-
-section
-variables (f : R →+* S) (x : S)
 
 @[simp] lemma eval₂_C : (C a).eval₂ f x = f a :=
 (sum_single_index $ by rw [f.map_zero, zero_mul]).trans $ by simp [pow_zero, mul_one]
@@ -355,7 +351,9 @@ by rw [← C_1, eval₂_C, f.map_one]
 instance eval₂.is_add_monoid_hom : is_add_monoid_hom (eval₂ f x) :=
 { map_zero := eval₂_zero _ _, map_add := λ _ _, eval₂_add _ _ }
 
-lemma eval₂_sum (p : polynomial R) (g : ℕ → R → polynomial R) (x : S) :
+variables [semiring T]
+
+lemma eval₂_sum (p : polynomial T) (g : ℕ → T → polynomial R) (x : S) :
   (p.sum g).eval₂ f x = p.sum (λ n a, (g n a).eval₂ f x) :=
 finsupp.sum_sum_index (by simp [is_add_monoid_hom.map_zero f])
   (by intros; simp [right_distrib, is_add_monoid_hom.map_add f])
