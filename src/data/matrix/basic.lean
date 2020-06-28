@@ -465,6 +465,13 @@ by { unfold elementary_matrix, ext, dsimp, simp }
 elementary_matrix i j (0 : α) = 0 :=
 by { unfold elementary_matrix, ext, simp }
 
+lemma elementary_matrix_add (i : m) (j : n) (a b : α) :
+elementary_matrix i j (a + b) = elementary_matrix i j a + elementary_matrix i j b :=
+begin
+  unfold elementary_matrix, ext,
+  split_ifs with h; simp [h],
+end
+
 
 lemma matrix_eq_sum_elementary (x : matrix n m α) :
 x = ∑ (i : n) (j : m), elementary_matrix i j (x i j) :=

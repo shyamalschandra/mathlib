@@ -18,6 +18,7 @@ open_locale big_operators
 
 open tensor_product
 open algebra.tensor_product
+open matrix
 
 variables {R : Type u} [comm_ring R]
 variables {A : Type v} [comm_ring A] [algebra R A]
@@ -119,7 +120,7 @@ The bare function `matrix n n A → A ⊗[R] matrix n n R`.
 (We don't need to show that it's an algebra map, thankfully --- just that it's an inverse.)
 -/
 def inv_fun (M : matrix n n A) : A ⊗[R] matrix n n R :=
-∑ (p : n × n), M p.1 p.2 ⊗ₜ (λ i' j', if (i', j') = p then 1 else 0)
+∑ (p : n × n), M p.1 p.2 ⊗ₜ (elementary_matrix p.1 p.2 1)
 
 @[simp] lemma inv_fun_zero : inv_fun R A n 0 = 0 :=
 by simp [inv_fun]
@@ -136,20 +137,17 @@ by simp [inv_fun,finset.mul_sum]
   inv_fun R A n (λ i j, algebra_map R A (M i j)) = 1 ⊗ₜ M :=
 begin
   dsimp [inv_fun],
-  simp only [algebra.algebra_map_eq_smul_one, smul_tmul, ←tmul_sum, (•), mul_boole],
-  congr, ext,
-  calc
-    (∑ x, λ i j, ite ((i, j) = x) (M x.1 x.2) 0) i j
-         = (∑ x, λ j, ite ((i, j) = x) (M x.1 x.2) 0) j : by simp
-     ... = ∑ x, ite ((i, j) = x) (M x.1 x.2) 0          : by simp
-     ... = M i j                                        : by simp,
-
+  simp only [algebra.algebra_map_eq_smul_one, smul_tmul, ←tmul_sum, mul_boole],
+  congr,
+  conv_rhs {rw matrix_eq_sum_elementary M},
+  convert finset.sum_product, simp,
 end
 
 lemma right_inv (M : matrix n n A) : (to_fun_alg_hom R A n) (inv_fun R A n M) = M :=
 begin
-  ext,
-  simp [inv_fun, alg_hom.map_sum, apply_ite (algebra_map R A)],
+  simp only [inv_fun, alg_hom.map_sum, elementary_matrix, apply_ite ⇑(algebra_map R A),
+    mul_boole, to_fun_alg_hom_apply, ring_hom.map_zero, ring_hom.map_one],
+  convert finset.sum_product, apply matrix_eq_sum_elementary,
 end
 
 lemma left_inv (M : A ⊗[R] matrix n n R) : inv_fun R A n (to_fun_alg_hom R A n M) = M :=
@@ -185,15 +183,23 @@ open matrix_equiv_tensor
 
 @[simp] lemma matrix_equiv_tensor_apply (M : matrix n n A) :
   matrix_equiv_tensor R A n M =
-    ∑ (p : n × n), M p.1 p.2 ⊗ₜ (λ i' j', if (i', j') = p then 1 else 0) :=
+    ∑ (p : n × n), M p.1 p.2 ⊗ₜ (elementary_matrix p.1 p.2 1) :=
 rfl
 
+-- TODO move, make `tmul_ite`.
+
+lemma ite_tmul {R M₁ M₂ : Type*} [comm_ring R] [add_comm_group M₁] [module R M₁] [add_comm_group M₂] [module R M₂] (x₁ : M₁) (x₂ : M₂)
+  (P : Prop) [decidable P] : ((if P then x₁ else 0) ⊗ₜ[R] x₂) = if P then (x₁ ⊗ₜ x₂) else 0 :=
+begin
+  split_ifs; simp
+end
+
 @[simp] lemma matrix_equiv_tensor_apply_elementary (i j : n) (x : A):
-  matrix_equiv_tensor R A n (λ i' j', if i' = i ∧ j' = j then x else 0) =
-    x ⊗ₜ (λ i' j', if i' = i ∧ j' = j then 1 else 0) :=
+  matrix_equiv_tensor R A n (elementary_matrix i j x) =
+    x ⊗ₜ (elementary_matrix i j 1) :=
 begin
   have t : ∀ (p : n × n), (p.1 = i ∧ p.2 = j) ↔ (p = (i, j)) := by tidy,
-  simp [ite_tmul, t],
+  simp [ite_tmul, t, elementary_matrix],
 end
 
 @[simp] lemma matrix_equiv_tensor_apply_symm (a : A) (M : matrix n n R) :
