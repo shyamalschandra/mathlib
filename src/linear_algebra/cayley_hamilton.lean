@@ -20,7 +20,7 @@ open polynomial matrix
 open_locale big_operators
 
 variables {R : Type u} [comm_ring R]
-variables {n : Type w} [fintype n] [decidable_eq n] [inhabited n]
+variables {n : Type w} [fintype n] [decidable_eq n]
 
 open finset
 
