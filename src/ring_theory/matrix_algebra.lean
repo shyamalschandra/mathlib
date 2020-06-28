@@ -188,8 +188,6 @@ rfl
 
 -- TODO move, make `tmul_ite`.
 
-#check apply_ite
-
 lemma ite_tmul {R M₁ M₂ : Type*} [comm_ring R] [add_comm_group M₁] [module R M₁] [add_comm_group M₂] [module R M₂] (x₁ : M₁) (x₂ : M₂)
   (P : Prop) [decidable P] : ((if P then x₁ else 0) ⊗ₜ[R] x₂) = if P then (x₁ ⊗ₜ x₂) else 0 :=
 begin

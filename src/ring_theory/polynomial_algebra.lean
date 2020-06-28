@@ -31,19 +31,6 @@ open algebra.tensor_product
 
 noncomputable theory
 
--- TODO add appropriate other versions, and move
-lemma ite_add_zero {α : Type*} [add_monoid α] {P : Prop} [decidable P] {a b : α} :
-  ite P (a + b) 0 = ite P a 0 + ite P b 0 :=
-by { split_ifs; simp, }
-
-lemma ite_mul_zero_left {α : Type*} [semiring α] (P : Prop) [decidable P] (a b : α) :
-  ite P (a * b) 0 = ite P a 0 * b :=
-by { split_ifs; simp, }
-
-lemma ite_mul_zero_right {α : Type*} [semiring α] (P : Prop) [decidable P] (a b : α) :
-  ite P (a * b) 0 = a * ite P b 0 :=
-by { split_ifs; simp, }
-
 variables (R : Type u) [comm_ring R]
 variables (A : Type v) [ring A] [algebra R A]
 
@@ -301,7 +288,8 @@ open polynomial_equiv_tensor
 The `R`-algebra isomorphism `polynomial A ≃ₐ[R] (A ⊗[R] polynomial R)`.
 -/
 def polynomial_equiv_tensor : polynomial A ≃ₐ[R] (A ⊗[R] polynomial R) :=
-alg_equiv.symm { ..(polynomial_equiv_tensor.to_fun_alg_hom R A), ..(polynomial_equiv_tensor.equiv R A) }
+alg_equiv.symm
+{ ..(polynomial_equiv_tensor.to_fun_alg_hom R A), ..(polynomial_equiv_tensor.equiv R A) }
 
 -- TODO update these if the definitions get changed above!
 
@@ -323,7 +311,7 @@ open matrix
 open_locale big_operators
 
 variables {R}
-variables {n : Type w} [fintype n] [decidable_eq n] [inhabited n]
+variables {n : Type w} [fintype n] [decidable_eq n]
 
 /--
 The algebra isomorphism stating "matrices of polynomials are the same as polynomials of matrices".
@@ -337,19 +325,24 @@ noncomputable def matrix_polynomial_equiv_polynomial_matrix :
 open finset
 
 -- TODO move
-@[elab_as_eliminator] protected lemma matrix.induction_on {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
+@[elab_as_eliminator] protected lemma matrix.induction_on'
+  {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
+  (h_zero : M 0)
   (h_add : ∀p q, M p → M q → M (p + q))
   (h_elementary : ∀ i j x, M (elementary_matrix i j x)) :
   M m :=
 begin
-  rw matrix_eq_sum_elementary m,
-  rw ← finset.sum_product',
-  apply finset.sum_induction,
-  { exact h_add },
-  { have := h_elementary (arbitrary n) (arbitrary n) 0,
-    revert this, simp },
-  intros, apply h_elementary,
+  rw [matrix_eq_sum_elementary m, ← finset.sum_product'],
+  apply finset.sum_induction _ _ h_add h_zero,
+  { intros, apply h_elementary, }
 end
+
+@[elab_as_eliminator] protected lemma matrix.induction_on
+  [inhabited n] {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
+  (h_add : ∀p q, M p → M q → M (p + q))
+  (h_elementary : ∀ i j x, M (elementary_matrix i j x)) :
+  M m :=
+matrix.induction_on' m (by { simpa using h_elementary (arbitrary n) (arbitrary n) 0, }) h_add h_elementary
 
 -- TODO move
 instance is_ring_hom_of_alg_hom
@@ -400,7 +393,8 @@ end
   (m : matrix n n (polynomial R)) (k : ℕ) (i j : n) :
   coeff (matrix_polynomial_equiv_polynomial_matrix m) k i j = coeff (m i j) k :=
 begin
-  apply matrix.induction_on m,
+  apply matrix.induction_on' m,
+  { simp, },
   { intros p q hp hq, simp [hp, hq], },
   { intros i' j' x,
     erw matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2,
