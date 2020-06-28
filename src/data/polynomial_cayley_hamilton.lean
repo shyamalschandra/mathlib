@@ -65,15 +65,17 @@ lemma sum_over_range (p : polynomial R) {f : ℕ → R → S} (h : ∀ n, f n 0 
 sum_over_range' p h (p.nat_degree + 1) (lt_add_one _)
 
 @[simp] lemma coeff_monomial (n : ℕ) (r : R) : coeff (monomial n r) n = r :=
-by rw [monomial_eq_smul_X, coeff_smul, coeff_X_pow, if_pos rfl, mul_one]
+by simp [coeff_single]
 
 @[simp] lemma mul_coeff_zero (p q : polynomial R) : coeff (p * q) 0 = coeff p 0 * coeff q 0 :=
 by simp [coeff_mul]
 
 lemma nat_degree_mul_le {p q : polynomial R} : nat_degree (p * q) ≤ nat_degree p + nat_degree q :=
 begin
-  apply nat_degree_le_of_degree_le, apply le_trans (degree_mul_le p q),
-  rw with_bot.coe_add, refine add_le_add _ _; apply degree_le_nat_degree
+  apply nat_degree_le_of_degree_le,
+  apply le_trans (degree_mul_le p q),
+  rw with_bot.coe_add,
+  refine add_le_add _ _; apply degree_le_nat_degree,
 end
 
 section
@@ -102,6 +104,8 @@ end
 The evaluation map is not generally multiplicative when the coefficient ring is noncommutative,
 but nevertheless any polynomial of the form `p * (X - monomial 0 r)` is sent to zero
 when evaluated at `r`.
+
+This is the key step in our proof of the Cayley-Hamilton theorem.
 -/
 lemma eval₂_mul_X_sub_monomial {p : polynomial R} {r : R} :
   (p * (X - monomial 0 r)).eval₂ f (f r) = 0 :=
@@ -131,8 +135,8 @@ lemma eval₂_mul_X_sub_monomial' {p : polynomial R} (r : R) :
   (p * (X - monomial 0 r)).eval₂ (ring_hom.id _) r = 0 :=
 eval₂_mul_X_sub_monomial _
 
-lemma eval₂_mul_X_sub_C {p : polynomial R} (r : R) :
-  (p * (X - C r)).eval₂ (ring_hom.id _) r = 0 :=
+lemma eval_mul_X_sub_C {p : polynomial R} (r : R) :
+  (p * (X - C r)).eval r = 0 :=
 eval₂_mul_X_sub_monomial _
 
 end ring
