@@ -28,7 +28,7 @@ open_locale tensor_product
 
 open polynomial
 open tensor_product
-open algebra.tensor_product
+open algebra.tensor_product (alg_hom_of_linear_map_tensor_product include_left)
 
 noncomputable theory
 
@@ -51,12 +51,12 @@ The bare function underlying `A ⊗[R] polynomial R →ₐ[R] polynomial A`, on 
 def to_fun (a : A) (p : polynomial R) : polynomial A :=
 p.sum (λ n r, monomial n (a * algebra_map R A r))
 
--- move this
+-- TODO move this
 @[simp] lemma monomial_zero (i : ℕ) :
   monomial i (0 : A) = 0 :=
 by simp [monomial]
 
--- move this
+-- TODO move this
 @[simp] lemma monomial_add (i : ℕ) (r s : A) :
   monomial i (r + s) = monomial i r + monomial i s :=
 by simp [monomial]
@@ -77,10 +77,10 @@ def to_fun_linear_right (a : A) : polynomial R →ₗ[R] polynomial A :=
       apply finset.sum_congr rfl,
       intros k hk,
       rw [monomial_eq_smul_X, monomial_eq_smul_X, algebra.smul_def, ← C_mul', ← C_mul',
-          ← _root_.mul_assoc],
+          ← mul_assoc],
       congr' 1,
       rw [← algebra.commutes, ← algebra.commutes],
-      simp only [ring_hom.map_mul, turkle_map_apply, _root_.mul_assoc] },
+      simp only [ring_hom.map_mul, turkle_map_apply, mul_assoc] },
     { intro i, simp only [ring_hom.map_zero, mul_zero, monomial_zero] },
   end,
   map_add' := λ p q,
@@ -119,41 +119,27 @@ as a linear map.
 def to_fun_linear : A ⊗[R] polynomial R →ₗ[R] polynomial A :=
 tensor_product.lift (to_fun_bilinear R A)
 
-section
--- We apparently need to provide the decideable instance here in order to successfully rewrite by this lemma?
-lemma foo (p : polynomial R) (k : ℕ) (h : decidable (¬p.coeff k = 0)) (a : A) :
+-- We apparently need to provide the decidable instance here
+-- in order to successfully rewrite by this lemma.
+lemma to_fun_linear_mul_tmul_mul_aux_1 (p : polynomial R) (k : ℕ) (h : decidable (¬p.coeff k = 0)) (a : A) :
   ite (¬coeff p k = 0) (a * (algebra_map R A) (coeff p k)) 0 = a * (algebra_map R A) (coeff p k) :=
 begin
   haveI := h,
   by_cases w : ¬p.coeff k = 0,
-  simp [w],
-  simp at w,
-  simp [w],
-end
+  { simp [w], },
+  { simp [classical.not_not.1 w], }
 end
 
--- TODO golf
-lemma thud (k : ℕ)
-  (a₁ a₂ : A)
-  (p₁ p₂ : polynomial R) :
+lemma to_fun_linear_mul_tmul_mul_aux_2 (k : ℕ) (a₁ a₂ : A) (p₁ p₂ : polynomial R) :
   a₁ * a₂ * (algebra_map R A) ((p₁ * p₂).coeff k) =
     (finset.nat.antidiagonal k).sum
-      (λ (x : ℕ × ℕ),
-         a₁ * (algebra_map R A) (p₁.coeff x.fst) *
-           (a₂ * (algebra_map R A) (p₂.coeff x.snd))) :=
+      (λ x, a₁ * (algebra_map R A) (coeff p₁ x.1) * (a₂ * (algebra_map R A) (coeff p₂ x.2))) :=
 begin
-  simp only [_root_.mul_assoc],
-  simp [algebra.commutes],
-  simp only [←finset.mul_sum],
-  simp only [_root_.mul_assoc],
-  simp only [←finset.mul_sum],
+  simp_rw [mul_assoc, algebra.commutes, ←finset.mul_sum, mul_assoc, ←finset.mul_sum],
   congr,
-  simp only [algebra.commutes (coeff p₂ _)],
-  simp only [coeff_mul],
-  simp only [ring_hom.map_sum, ring_hom.map_mul],
+  simp_rw [algebra.commutes (coeff p₂ _), coeff_mul, ring_hom.map_sum, ring_hom.map_mul],
 end
 
--- TODO golf
 lemma to_fun_linear_mul_tmul_mul (a₁ a₂ : A) (p₁ p₂ : polynomial R) :
   (to_fun_linear R A) ((a₁ * a₂) ⊗ₜ[R] p₁ * p₂) =
     (to_fun_linear R A) (a₁ ⊗ₜ[R] p₁) * (to_fun_linear R A) (a₂ ⊗ₜ[R] p₂) :=
@@ -162,22 +148,24 @@ begin
   simp only [lift.tmul],
   dsimp [to_fun_bilinear, to_fun_linear_right, to_fun],
   ext k,
-  simp [coeff_sum, coeff_single],
-  dsimp [finsupp.sum], simp,
-  simp [coeff_mul, coeff_single],
-  simp [apply_eq_coeff],
-  simp only [ite_mul_zero_right (¬coeff p₂ _ = 0) (a₁ * (algebra_map R A) (coeff p₁ _))],
-  simp only [ite_mul_zero_left (¬coeff p₁ _ = 0) (a₁ * (algebra_map R A) (coeff p₁ _))],
-  simp only [foo],
-  simp only [thud],
+  simp_rw [coeff_sum, coeff_single, finsupp.sum,
+    finset.sum_ite_eq', finsupp.mem_support_iff, ne.def, coeff_mul, finset_sum_coeff, coeff_single,
+    finset.sum_ite_eq', finsupp.mem_support_iff, ne.def,
+    mul_ite, mul_zero, ite_mul, zero_mul, apply_eq_coeff],
+  simp_rw [ite_mul_zero_left (¬coeff p₁ _ = 0) (a₁ * (algebra_map R A) (coeff p₁ _)),
+    ite_mul_zero_right (¬coeff p₂ _ = 0) (ite _ _ _),
+    to_fun_linear_mul_tmul_mul_aux_1, to_fun_linear_mul_tmul_mul_aux_2],
 end
 
 lemma to_fun_linear_algebra_map_tmul_one (r : R) :
   (to_fun_linear R A) ((algebra_map R A) r ⊗ₜ[R] 1) = (algebra_map R (polynomial A)) r :=
 begin
-  unfold to_fun_linear, simp only [lift.tmul],
+  dsimp [to_fun_linear],
+  simp only [lift.tmul],
   dsimp [to_fun_bilinear, to_fun_linear_right, to_fun],
-  rw [← C_1, C_def, finsupp.sum_single_index]; rw single_eq_C_mul_X; unfold algebra_map; simp, refl
+  rw [← C_1, C_def, finsupp.sum_single_index],
+  { simp, refl, },
+  { simp, },
 end
 
 -- The following declaration is SLOOOOOOW
@@ -200,8 +188,8 @@ The algebra homomorphism `A ⊗[R] polynomial R →ₐ[R] polynomial A`.
 -/
 def to_fun_alg_hom : A ⊗[R] polynomial R →ₐ[R] polynomial A :=
 alg_hom_of_linear_map_tensor_product (to_fun_linear R A)
-(to_fun_linear_mul_tmul_mul R A)
-(to_fun_linear_algebra_map_tmul_one R A)
+  (to_fun_linear_mul_tmul_mul R A)
+  (to_fun_linear_algebra_map_tmul_one R A)
 
 @[simp] lemma to_fun_alg_hom_apply_tmul (a : A) (p : polynomial R) :
   to_fun_alg_hom R A (a ⊗ₜ[R] p) = p.sum (λ n r, monomial n (a * (algebra_map R A) r)) :=
@@ -234,25 +222,20 @@ p.eval₂
 lemma inv_fun_add {p q} : inv_fun R A (p + q) = inv_fun R A p + inv_fun R A q :=
 by simp only [inv_fun, eval₂_add]
 
--- TODO golf
 lemma left_inv (x : A ⊗ polynomial R) :
   inv_fun R A ((to_fun_alg_hom R A) x) = x :=
 begin
   apply tensor_product.induction_on _ _ x,
   { simp [inv_fun], },
   { intros a p, dsimp only [inv_fun],
-    simp only [to_fun_alg_hom_apply_tmul],
-    simp only [eval₂_sum],
-    simp,
-    simp only [←algebra.commutes],
-    simp only [←algebra.smul_def''],
-    simp only [smul_tmul],
-    simp only [finsupp.sum],
-    simp only [←tmul_sum],
+    rw [to_fun_alg_hom_apply_tmul, eval₂_sum],
+    simp_rw [eval₂_monomial, alg_hom.coe_to_ring_hom, algebra.tensor_product.tmul_pow, one_pow,
+      algebra.tensor_product.include_left_apply, algebra.tensor_product.tmul_mul_tmul,
+      mul_one, one_mul, ←algebra.commutes, ←algebra.smul_def'', smul_tmul],
+    rw [finsupp.sum, ←tmul_sum],
     conv_rhs { rw [←sum_C_mul_X_eq p], },
     simp only [algebra.smul_def''],
-    refl,
-    },
+    refl, },
   { intros p q hp hq,
     simp only [alg_hom.map_add, inv_fun_add, hp, hq], },
 end
@@ -263,10 +246,9 @@ begin
   apply polynomial.induction_on' x,
   { intros p q hp hq, simp only [inv_fun_add, alg_hom.map_add, hp, hq], },
   { intros n a,
-    simp only [inv_fun],
-    simp only [eval₂_monomial],
-    simp,
-    rw [←monomial_one_eq_X_pow],
+    rw [inv_fun, eval₂_monomial, alg_hom.coe_to_ring_hom, algebra.tensor_product.include_left_apply,
+      algebra.tensor_product.tmul_pow, one_pow, algebra.tensor_product.tmul_mul_tmul,
+      mul_one, one_mul, to_fun_alg_hom_apply_tmul, ←monomial_one_eq_X_pow],
     rw [finsupp.sum_single_index]; simp, }
 end
 
@@ -325,35 +307,22 @@ noncomputable def matrix_polynomial_equiv_polynomial_matrix :
 
 open finset
 
--- TODO move
-instance is_ring_hom_of_alg_hom
-  {R : Type u} [comm_ring R] {A : Type v} [ring A] [algebra R A] {B : Type w} [ring B] [algebra R B]
-  (f : A →ₐ[R] B) :
-is_ring_hom f :=
-{ map_one := by simp, map_mul := by simp, map_add := by simp }
-
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_1 (i j : n) (k : ℕ) (x : R) :
   matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j $ monomial k x) =
     monomial k (elementary_matrix i j x) :=
 begin
-  dsimp only [matrix_polynomial_equiv_polynomial_matrix, alg_equiv.trans_apply],
-  simp only [matrix_equiv_tensor_apply_elementary],
+  simp only [matrix_polynomial_equiv_polynomial_matrix, alg_equiv.trans_apply,
+    matrix_equiv_tensor_apply_elementary],
   apply (polynomial_equiv_tensor R (matrix n n R)).injective,
   simp only [alg_equiv.apply_symm_apply],
   convert algebra.tensor_product.comm_tmul _ _ _ _ _,
   simp only [polynomial_equiv_tensor_apply],
   convert eval₂_monomial _ _,
-  simp only [algebra.tensor_product.tmul_mul_tmul, one_pow, _root_.one_mul, matrix.mul_one,
+  simp only [algebra.tensor_product.tmul_mul_tmul, one_pow, one_mul, matrix.mul_one,
     algebra.tensor_product.tmul_pow, algebra.tensor_product.include_left_apply, mul_eq_mul],
-  -- almost there: just use `R` bilinearity
-  rw monomial_eq_smul_X,
-  rw ← tensor_product.smul_tmul,
+  rw [monomial_eq_smul_X, ← tensor_product.smul_tmul],
   congr, ext, simp, dsimp, simp,
 end
-
-
--- by { unfold elementary_matrix, ext, dsimp, simp }
-
 
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
   (i j : n) (p : polynomial R) (k : ℕ) :
@@ -362,11 +331,9 @@ lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
 begin
   apply polynomial.induction_on' p,
   { intros p q hp hq, ext,
-    simp [hp, hq, coeff_add, add_val, elementary_matrix_add],
-    },
+    simp [hp, hq, coeff_add, add_val, elementary_matrix_add], },
   { intros k x,
-    rw matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_1,
-    simp [coeff_single],
+    simp only [matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_1, coeff_single],
     split_ifs; { funext, simp, }, }
 end
 
@@ -389,7 +356,7 @@ lemma matrix_polynomial_equiv_polynomial_matrix_smul_one (p : polynomial R) :
   matrix_polynomial_equiv_polynomial_matrix (p • 1) = p.map (algebra_map R (matrix n n R)) :=
 begin
   ext m i j,
-  simp [coeff_map, matrix.one_val],
-  simp [algebra_map_matrix_val],
+  simp only [coeff_map, one_val, algebra_map_matrix_val, mul_boole,
+    smul_val, matrix_polynomial_equiv_polynomial_matrix_coeff_apply],
   split_ifs; simp,
 end

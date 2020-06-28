@@ -27,10 +27,12 @@ is written and compiles, but takes longer than the `-T100000` time limit,
 so is currently commented out.
 -/
 
-namespace algebra.tensor_product
+namespace algebra
 
 open_locale tensor_product
 open tensor_product
+
+namespace tensor_product
 
 section ring
 
@@ -519,4 +521,6 @@ end
 
 end monoidal
 
-end algebra.tensor_product
+end tensor_product
+
+end algebra
