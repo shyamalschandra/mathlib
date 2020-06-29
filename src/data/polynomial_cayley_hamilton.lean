@@ -15,7 +15,7 @@ variables [ring R]
 variables [ring S]
 variables (f : R →+* S) (x : S)
 
-lemma foo {p : polynomial R} {r : R} {a : ℕ} :
+lemma coeff_mul_X_sub_monomial {p : polynomial R} {r : R} {a : ℕ} :
   coeff (p * (X - monomial 0 r)) (a + 1) = coeff p a - coeff p (a + 1) * r :=
 begin
   simp [coeff_mul],
@@ -93,15 +93,11 @@ begin
      ... < p.nat_degree + 2 : lt_add_one _,
   rw sum_over_range' _ _ (p.nat_degree + 2) bound,
   swap,
-  { simp [is_ring_hom.map_zero f], },
+  { simp, },
   rw sum_range_succ',
   conv_lhs {
     congr, apply_congr, skip,
-    rw [foo, is_ring_hom.map_sub f, is_ring_hom.map_mul f, sub_mul, mul_assoc, ←pow_succ],
-  },
-  conv_lhs {
-    congr, skip,
-    simp [is_ring_hom.map_neg f, is_ring_hom.map_mul f],
+    rw [coeff_mul_X_sub_monomial, f.map_sub, f.map_mul, sub_mul, mul_assoc, ←pow_succ],
   },
   simp [sum_range_sub', is_ring_hom.map_zero f],
 end
