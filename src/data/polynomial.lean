@@ -169,6 +169,9 @@ begin
   { intros x h hx, rw [if_pos (hite x hx)] }
 end
 
+@[simp] lemma mul_coeff_zero (p q : polynomial R) : coeff (p * q) 0 = coeff p 0 * coeff q 0 :=
+by simp [coeff_mul]
+
 lemma monomial_one_eq_X_pow : ∀{n}, monomial n (1 : R) = X^n
 | 0     := rfl
 | (n+1) :=
@@ -715,6 +718,43 @@ end
 lemma coeff_ne_zero_of_eq_degree {p : polynomial R} {n : ℕ} (hn : degree p = n) :
   coeff p n ≠ 0 :=
 λ h, mem_support_iff.mp (mem_of_max hn) h
+
+end semiring
+
+section semiring
+variables [semiring R] [add_comm_monoid S]
+
+/--
+We can reexpress a sum over `p.support` as a sum over `range n`,
+for any `n` satisfying `p.nat_degree < n`.
+-/
+lemma sum_over_range' (p : polynomial R) {f : ℕ → R → S} (h : ∀ n, f n 0 = 0)
+  (n : ℕ) (w : p.nat_degree < n) :
+  p.sum f = ∑ (a : ℕ) in range n, f a (coeff p a) :=
+begin
+  rw finsupp.sum,
+  apply finset.sum_bij_ne_zero (λ n _ _, n),
+  { intros k h₁ h₂, simp only [mem_range],
+    calc k ≤ p.nat_degree : _
+       ... < n : w,
+    rw finsupp.mem_support_iff at h₁,
+    exact le_nat_degree_of_ne_zero h₁, },
+  { intros, assumption },
+  { intros b hb hb',
+    refine ⟨b, _, hb', rfl⟩,
+    rw finsupp.mem_support_iff,
+    contrapose! hb',
+    convert h b, },
+  { intros, refl }
+end
+
+/--
+We can reexpress a sum over `p.support` as a sum over `range (p.nat_degree + 1)`.
+-/
+-- See also `as_sum`.
+lemma sum_over_range (p : polynomial R) {f : ℕ → R → S} (h : ∀ n, f n 0 = 0) :
+  p.sum f = ∑ (a : ℕ) in range (p.nat_degree + 1), f a (coeff p a) :=
+sum_over_range' p h (p.nat_degree + 1) (lt_add_one _)
 
 end semiring
 
