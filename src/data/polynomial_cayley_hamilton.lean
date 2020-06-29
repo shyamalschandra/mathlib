@@ -37,9 +37,10 @@ begin
   { intros, rw sub_eq_add_neg, conv_rhs {rw add_comm}, simp [single_eq_C_mul_X, coeff_C], },
 end
 
-@[simp] lemma coeff_nat_degree_succ_eq_zero {p : polynomial R} : p.coeff (p.nat_degree + 1) = 0 :=
-coeff_eq_zero_of_nat_degree_lt (lt_add_one _)
-
+/--
+We can reexpress a sum over the `p.support` as a sum over `range n`,
+for any `n` satisfying `p.nat_degree < n`.
+-/
 lemma sum_over_range' (p : polynomial R) {f : ℕ → R → S} (h : ∀ n, f n 0 = 0)
   (n : ℕ) (w : p.nat_degree < n) :
   p.sum f = ∑ (a : ℕ) in range n, f a (coeff p a) :=
@@ -60,6 +61,9 @@ begin
   { intros, refl }
 end
 
+/--
+We can reexpress a sum over the `p.support` as a sum over `range (p.nat_degree + 1)`.
+-/
 lemma sum_over_range (p : polynomial R) {f : ℕ → R → S} (h : ∀ n, f n 0 = 0) :
   p.sum f = ∑ (a : ℕ) in range (p.nat_degree + 1), f a (coeff p a) :=
 sum_over_range' p h (p.nat_degree + 1) (lt_add_one _)
@@ -70,35 +74,6 @@ by simp [coeff_single]
 @[simp] lemma mul_coeff_zero (p q : polynomial R) : coeff (p * q) 0 = coeff p 0 * coeff q 0 :=
 by simp [coeff_mul]
 
-lemma nat_degree_mul_le {p q : polynomial R} : nat_degree (p * q) ≤ nat_degree p + nat_degree q :=
-begin
-  apply nat_degree_le_of_degree_le,
-  apply le_trans (degree_mul_le p q),
-  rw with_bot.coe_add,
-  refine add_le_add _ _; apply degree_le_nat_degree,
-end
-
-section
-variable [nonzero R] --otherwise this nat_degree is 0
-
-lemma nat_degree_X_sub_monomial_zero {r : R} : (X - monomial 0 r).nat_degree = 1 :=
-by { rw single_eq_C_mul_X, apply nat_degree_eq_of_degree_eq_some, simp }
-end
-
-lemma eq_zero_of_eq_zero (h : (0 : R) = (1 : R)) (p : polynomial R) : p = 0 :=
-by rw [←one_smul R p, ←h, zero_smul]
-
-lemma nat_degree_X_sub_monomial_zero_le {r : R} : (X - monomial 0 r).nat_degree ≤ 1 :=
-begin
-  classical,
-  by_cases h : (0 : R) = (1 : R),
-  { calc (X - monomial 0 r).nat_degree
-         = (0 : polynomial R).nat_degree : congr_arg nat_degree (eq_zero_of_eq_zero h _)
-     ... = 0 : nat_degree_zero
-     ... ≤ 1 : zero_le 1, },
-  { haveI : nonzero R := ⟨h⟩,
-    exact le_of_eq nat_degree_X_sub_monomial_zero, }
-end
 
 /--
 The evaluation map is not generally multiplicative when the coefficient ring is noncommutative,

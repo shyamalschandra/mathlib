@@ -678,6 +678,9 @@ begin
   { rwa [degree_eq_nat_degree hp, with_bot.coe_lt_coe] }
 end
 
+@[simp] lemma coeff_nat_degree_succ_eq_zero {p : polynomial R} : p.coeff (p.nat_degree + 1) = 0 :=
+coeff_eq_zero_of_nat_degree_lt (lt_add_one _)
+
 -- TODO find a home (this file)
 @[simp] lemma finset_sum_coeff (s : finset ι) (f : ι → polynomial R) (n : ℕ) :
   coeff (∑ b in s, f b) n = ∑ b in s, coeff (f b) n :=
@@ -1325,6 +1328,14 @@ theorem nat_degree_le_of_degree_le {p : polynomial R} {n : ℕ}
 show option.get_or_else (degree p) 0 ≤ n, from match degree p, H with
 | none,     H := zero_le _
 | (some d), H := with_bot.coe_le_coe.1 H
+end
+
+lemma nat_degree_mul_le {p q : polynomial R} : nat_degree (p * q) ≤ nat_degree p + nat_degree q :=
+begin
+  apply nat_degree_le_of_degree_le,
+  apply le_trans (degree_mul_le p q),
+  rw with_bot.coe_add,
+  refine add_le_add _ _; apply degree_le_nat_degree,
 end
 
 theorem leading_coeff_mul_X_pow {p : polynomial R} {n : ℕ} :
@@ -2060,7 +2071,34 @@ lemma X_pow_sub_C_ne_zero {n : ℕ} (hn : 0 < n) (a : R) :
 mt degree_eq_bot.2 (show degree ((X : polynomial R) ^ n - C a) ≠ ⊥,
   by rw degree_X_pow_sub_C hn a; exact dec_trivial)
 
+lemma nat_degree_X_sub_monomial_zero {r : R} : (X - monomial 0 r).nat_degree = 1 :=
+by { rw single_eq_C_mul_X, apply nat_degree_eq_of_degree_eq_some, simp, }
+
+lemma nat_degree_X_pow_sub_monomial_zero {n : ℕ} (hn : 0 < n) {r : R} :
+  (X ^ n - monomial 0 r).nat_degree = n :=
+by { rw single_eq_C_mul_X, apply nat_degree_eq_of_degree_eq_some, simp [degree_X_pow_sub_C hn], }
+
 end nonzero_ring
+
+section ring
+variables [ring R]
+
+lemma eq_zero_of_eq_zero (h : (0 : R) = (1 : R)) (p : polynomial R) : p = 0 :=
+by rw [←one_smul R p, ←h, zero_smul]
+
+lemma nat_degree_X_sub_monomial_zero_le {r : R} : (X - monomial 0 r).nat_degree ≤ 1 :=
+begin
+  classical,
+  by_cases h : (0 : R) = (1 : R),
+  { calc (X - monomial 0 r).nat_degree
+         = (0 : polynomial R).nat_degree : congr_arg nat_degree (eq_zero_of_eq_zero h _)
+     ... = 0 : nat_degree_zero
+     ... ≤ 1 : zero_le 1, },
+  { haveI : nonzero R := ⟨h⟩,
+    exact le_of_eq nat_degree_X_sub_monomial_zero, }
+end
+
+end ring
 
 section comm_ring
 
