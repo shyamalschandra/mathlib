@@ -199,7 +199,7 @@ begin
   { exact λ h1, (h1 (nat.mem_antidiagonal.2 rfl)).elim }
 end
 
-theorem coeff_mul_X (p : polynomial R) (n : ℕ) :
+@[simp] theorem coeff_mul_X (p : polynomial R) (n : ℕ) :
   coeff (p * X) (n + 1) = coeff p n :=
 by simpa only [pow_one] using coeff_mul_X_pow p 1 n
 
@@ -296,6 +296,16 @@ begin
     apply sum_congr rfl,
     assume i hi, by_cases i = n; simp [h] },
   { simp [finsupp.sum] }
+end
+
+@[simp] lemma coeff_mul_C (p : polynomial R) (n : ℕ) (a : R) :
+  coeff (p * C a) n = coeff p n * a :=
+begin
+  conv_rhs { rw [← @finsupp.sum_single _ _ _ p, coeff_sum] },
+  rw [mul_def, C_def], simp_rw [sum_single_index],
+  { simp [coeff_single, finsupp.sum_mul, coeff_sum],
+    apply sum_congr rfl,
+    assume i hi, by_cases i = n; simp [h, sum_single_index], },
 end
 
 end coeff

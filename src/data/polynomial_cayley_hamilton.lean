@@ -12,27 +12,19 @@ section ring
 
 variables [ring R]
 
+@[simp]
+theorem coeff_mul_monomial (p : polynomial R) (n d : ℕ) (r : R) :
+  coeff (p * monomial n r) (d + n) = coeff p d * r :=
+by rw [single_eq_C_mul_X, ←X_pow_mul, ←mul_assoc, coeff_mul_C, coeff_mul_X_pow]
+
+@[simp]
+theorem coeff_mul_monomial_zero (p : polynomial R) (d : ℕ) (r : R) :
+  coeff (p * monomial 0 r) d = coeff p d * r :=
+coeff_mul_monomial p 0 d r
+
 lemma coeff_mul_X_sub_monomial {p : polynomial R} {r : R} {a : ℕ} :
   coeff (p * (X - monomial 0 r)) (a + 1) = coeff p a - coeff p (a + 1) * r :=
-begin
-  simp [coeff_mul],
-  transitivity ∑ (x : ℕ × ℕ) in {(a+1, 0), (a, 1)}, coeff p x.1 * (coeff X x.2 - (monomial 0 r).coeff x.2),
-  apply finset.sum_bij_ne_zero (λ n _ _, n),
-  { intros x h₁ h₂, simp, rw finset.nat.mem_antidiagonal at h₁,
-    have h₃ := ne_zero_of_mul_ne_zero_left h₂,
-    simp [single_eq_C_mul_X, coeff_C] at h₃,
-    by_cases x.2 = 0, left, rw h at h₁, ext, simp [← h₁], rw ← h, rw if_neg h at h₃,
-    by_cases 1 = x.2, right, rw ← h at h₁, ext, apply nat.add_right_cancel h₁, rw h,
-    exfalso, apply h₃, rw [coeff_X, if_neg h], simp, },
-  { tauto, },
-  { intros b mem ne, use b,
-    simp only [exists_prop, and_true, eq_self_iff_true, ne.def, nat.mem_antidiagonal],
-    split; simp only [mem_insert, mem_singleton] at mem,
-    { rcases mem with rfl|rfl; simp, },
-    { exact ne, }, },
-  { intros, simp, },
-  { intros, rw sub_eq_add_neg, conv_rhs {rw add_comm}, simp [single_eq_C_mul_X, coeff_C], },
-end
+by simp [mul_sub]
 
 variables [ring S]
 
