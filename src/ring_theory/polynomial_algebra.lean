@@ -308,8 +308,8 @@ noncomputable def matrix_polynomial_equiv_polynomial_matrix :
 open finset
 
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_1 (i j : n) (k : ℕ) (x : R) :
-  matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j $ monomial k x) =
-    monomial k (elementary_matrix i j x) :=
+  matrix_polynomial_equiv_polynomial_matrix (std_basis_matrix i j $ monomial k x) =
+    monomial k (std_basis_matrix i j x) :=
 begin
   simp only [matrix_polynomial_equiv_polynomial_matrix, alg_equiv.trans_apply,
     matrix_equiv_tensor_apply_elementary],
@@ -326,12 +326,12 @@ end
 
 lemma matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2
   (i j : n) (p : polynomial R) (k : ℕ) :
-  coeff (matrix_polynomial_equiv_polynomial_matrix (elementary_matrix i j p)) k =
-    elementary_matrix i j (coeff p k) :=
+  coeff (matrix_polynomial_equiv_polynomial_matrix (std_basis_matrix i j p)) k =
+    std_basis_matrix i j (coeff p k) :=
 begin
   apply polynomial.induction_on' p,
   { intros p q hp hq, ext,
-    simp [hp, hq, coeff_add, add_val, elementary_matrix_add], },
+    simp [hp, hq, coeff_add, add_val, std_basis_matrix_add], },
   { intros k x,
     simp only [matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_1, coeff_single],
     split_ifs; { funext, simp, }, }
@@ -346,10 +346,10 @@ begin
   { intros p q hp hq, simp [hp, hq], },
   { intros i' j' x,
     erw matrix_polynomial_equiv_polynomial_matrix_coeff_apply_aux_2,
-    dsimp [elementary_matrix],
+    dsimp [std_basis_matrix],
     split_ifs,
-    { rcases h with ⟨rfl, rfl⟩, simp [elementary_matrix], },
-    { simp [elementary_matrix, h], }, },
+    { rcases h with ⟨rfl, rfl⟩, simp [std_basis_matrix], },
+    { simp [std_basis_matrix, h], }, },
 end
 
 lemma matrix_polynomial_equiv_polynomial_matrix_smul_one (p : polynomial R) :

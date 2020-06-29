@@ -454,50 +454,55 @@ lemma vec_mul_vec_eq (w : m → α) (v : n → α) :
 by { ext i j, simp [vec_mul_vec, mul_val], refl }
 
 variables [decidable_eq m] [decidable_eq n]
-def elementary_matrix (i : m) (j : n) (a : α) : matrix m n α :=
+#where
+/--
+`std_basis_matrix i j a` is the matrix with `a` in the `i`-th row, `j`-th column,
+and zeroes elsewhere.
+-/
+def std_basis_matrix (i : m) (j : n) (a : α) : matrix m n α :=
 (λ i' j', if i' = i ∧ j' = j then a else 0)
 
-@[simp] lemma smul_elementary_matrix (i : m) (j : n) (a b : α) :
-b • elementary_matrix i j a = elementary_matrix i j (b • a) :=
-by { unfold elementary_matrix, ext, dsimp, simp }
+@[simp] lemma smul_std_basis_matrix (i : m) (j : n) (a b : α) :
+b • std_basis_matrix i j a = std_basis_matrix i j (b • a) :=
+by { unfold std_basis_matrix, ext, dsimp, simp }
 
-@[simp] lemma elementary_matrix_zero (i : m) (j : n) :
-elementary_matrix i j (0 : α) = 0 :=
-by { unfold elementary_matrix, ext, simp }
+@[simp] lemma std_basis_matrix_zero (i : m) (j : n) :
+std_basis_matrix i j (0 : α) = 0 :=
+by { unfold std_basis_matrix, ext, simp }
 
-lemma elementary_matrix_add (i : m) (j : n) (a b : α) :
-elementary_matrix i j (a + b) = elementary_matrix i j a + elementary_matrix i j b :=
+lemma std_basis_matrix_add (i : m) (j : n) (a b : α) :
+std_basis_matrix i j (a + b) = std_basis_matrix i j a + std_basis_matrix i j b :=
 begin
-  unfold elementary_matrix, ext,
+  unfold std_basis_matrix, ext,
   split_ifs with h; simp [h],
 end
 
 
 lemma matrix_eq_sum_elementary (x : matrix n m α) :
-x = ∑ (i : n) (j : m), elementary_matrix i j (x i j) :=
+x = ∑ (i : n) (j : m), std_basis_matrix i j (x i j) :=
 begin
   ext, iterate 2 {rw finset.sum_apply},
   rw ← finset.sum_subset, swap 4, exact {i},
-  { norm_num [elementary_matrix] },
+  { norm_num [std_basis_matrix] },
   { simp },
   intros, norm_num at a, norm_num,
   convert finset.sum_const_zero,
-  ext, norm_num [elementary_matrix],
+  ext, norm_num [std_basis_matrix],
   rw if_neg, tauto!,
 end
 
 lemma elementary_eq_basis_mul_basis (i : m) (j : n) :
-elementary_matrix i j 1 = vec_mul_vec (λ i', ite (i = i') 1 0) (λ j', ite (j = j') 1 0) :=
+std_basis_matrix i j 1 = vec_mul_vec (λ i', ite (i = i') 1 0) (λ j', ite (j = j') 1 0) :=
 begin
-  ext, norm_num [elementary_matrix, vec_mul_vec],
+  ext, norm_num [std_basis_matrix, vec_mul_vec],
   split_ifs; tauto,
 end
 
-@[elab_as_eliminator] protected lemma matrix.induction_on'
+@[elab_as_eliminator] protected lemma induction_on'
   {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
   (h_zero : M 0)
   (h_add : ∀p q, M p → M q → M (p + q))
-  (h_elementary : ∀ i j x, M (elementary_matrix i j x)) :
+  (h_elementary : ∀ i j x, M (std_basis_matrix i j x)) :
   M m :=
 begin
   rw [matrix_eq_sum_elementary m, ← finset.sum_product'],
@@ -505,13 +510,17 @@ begin
   { intros, apply h_elementary, }
 end
 
-@[elab_as_eliminator] protected lemma matrix.induction_on
-  [inhabited n] {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
+@[elab_as_eliminator] protected lemma induction_on
+  [nonempty n] {X : Type*} [semiring X] {M : matrix n n X → Prop} (m : matrix n n X)
   (h_add : ∀p q, M p → M q → M (p + q))
-  (h_elementary : ∀ i j x, M (elementary_matrix i j x)) :
+  (h_elementary : ∀ i j x, M (std_basis_matrix i j x)) :
   M m :=
 matrix.induction_on' m
-(by { simpa using h_elementary (arbitrary n) (arbitrary n) 0, }) h_add h_elementary
+begin
+  have i : n := classical.choice (by assumption),
+  simpa using h_elementary i i 0,
+end
+h_add h_elementary
 
 end semiring
 

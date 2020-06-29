@@ -120,7 +120,7 @@ The bare function `matrix n n A → A ⊗[R] matrix n n R`.
 (We don't need to show that it's an algebra map, thankfully --- just that it's an inverse.)
 -/
 def inv_fun (M : matrix n n A) : A ⊗[R] matrix n n R :=
-∑ (p : n × n), M p.1 p.2 ⊗ₜ (elementary_matrix p.1 p.2 1)
+∑ (p : n × n), M p.1 p.2 ⊗ₜ (std_basis_matrix p.1 p.2 1)
 
 @[simp] lemma inv_fun_zero : inv_fun R A n 0 = 0 :=
 by simp [inv_fun]
@@ -145,7 +145,7 @@ end
 
 lemma right_inv (M : matrix n n A) : (to_fun_alg_hom R A n) (inv_fun R A n M) = M :=
 begin
-  simp only [inv_fun, alg_hom.map_sum, elementary_matrix, apply_ite ⇑(algebra_map R A),
+  simp only [inv_fun, alg_hom.map_sum, std_basis_matrix, apply_ite ⇑(algebra_map R A),
     mul_boole, to_fun_alg_hom_apply, ring_hom.map_zero, ring_hom.map_one],
   convert finset.sum_product, apply matrix_eq_sum_elementary,
 end
@@ -183,15 +183,15 @@ open matrix_equiv_tensor
 
 @[simp] lemma matrix_equiv_tensor_apply (M : matrix n n A) :
   matrix_equiv_tensor R A n M =
-    ∑ (p : n × n), M p.1 p.2 ⊗ₜ (elementary_matrix p.1 p.2 1) :=
+    ∑ (p : n × n), M p.1 p.2 ⊗ₜ (std_basis_matrix p.1 p.2 1) :=
 rfl
 
 @[simp] lemma matrix_equiv_tensor_apply_elementary (i j : n) (x : A):
-  matrix_equiv_tensor R A n (elementary_matrix i j x) =
-    x ⊗ₜ (elementary_matrix i j 1) :=
+  matrix_equiv_tensor R A n (std_basis_matrix i j x) =
+    x ⊗ₜ (std_basis_matrix i j 1) :=
 begin
   have t : ∀ (p : n × n), (p.1 = i ∧ p.2 = j) ↔ (p = (i, j)) := by tidy,
-  simp [ite_tmul, t, elementary_matrix],
+  simp [ite_tmul, t, std_basis_matrix],
 end
 
 @[simp] lemma matrix_equiv_tensor_apply_symm (a : A) (M : matrix n n R) :
