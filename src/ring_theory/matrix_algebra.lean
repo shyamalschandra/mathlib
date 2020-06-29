@@ -91,7 +91,8 @@ variables [decidable_eq n]
 The function `(A ⊗[R] matrix n n R) →ₐ[R] matrix n n A`, as an algebra homomorphism.
 -/
 def to_fun_alg_hom : (A ⊗[R] matrix n n R) →ₐ[R] matrix n n A :=
-alg_hom_of_linear_map_tensor_product (to_fun_linear R A n)
+alg_hom_of_linear_map_tensor_product
+(to_fun_linear R A n)
 begin
   intros, ext,
   simp only [to_fun_linear, to_fun_bilinear, to_fun_right_linear, to_fun, lift.tmul,

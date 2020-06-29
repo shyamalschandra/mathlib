@@ -56,6 +56,14 @@ local attribute [instance] coeff_coe_to_fun
 @[reducible]
 def monomial (n : ℕ) (a : R) : polynomial R := finsupp.single n a
 
+@[simp] lemma monomial_zero (n : ℕ) :
+  monomial n (0 : R) = 0 :=
+by simp [monomial]
+
+lemma monomial_add (n : ℕ) (r s : R) :
+  monomial n (r + s) = monomial n r + monomial n s :=
+by simp [monomial]
+
 /-- `X` is the polynomial variable (aka indeterminant). -/
 def X : polynomial R := monomial 1 1
 
@@ -213,7 +221,7 @@ section C
 /-- `C a` is the constant polynomial `a`. -/
 def C : R →+* polynomial R := add_monoid_algebra.algebra_map' (ring_hom.id R)
 
-lemma C_def (a : R) : C a = single 0 a := rfl
+lemma C_def (a : R) : C a = monomial 0 a := rfl
 
 lemma single_eq_C_mul_X : ∀{n}, monomial n a = C a * X^n
 | 0     := (mul_one _).symm
@@ -307,6 +315,24 @@ begin
     apply sum_congr rfl,
     assume i hi, by_cases i = n; simp [h, sum_single_index], },
 end
+
+theorem coeff_mul_monomial (p : polynomial R) (n d : ℕ) (r : R) :
+  coeff (p * monomial n r) (d + n) = coeff p d * r :=
+by rw [single_eq_C_mul_X, ←X_pow_mul, ←mul_assoc, coeff_mul_C, coeff_mul_X_pow]
+
+theorem coeff_monomial_mul (p : polynomial R) (n d : ℕ) (r : R) :
+  coeff (monomial n r * p) (d + n) = r * coeff p d :=
+by rw [single_eq_C_mul_X, mul_assoc, coeff_C_mul, X_pow_mul, coeff_mul_X_pow]
+
+@[simp]
+theorem coeff_mul_monomial_zero (p : polynomial R) (d : ℕ) (r : R) :
+  coeff (p * monomial 0 r) d = coeff p d * r :=
+coeff_mul_monomial p 0 d r
+
+@[simp]
+theorem coeff_monomial_zero_mul (p : polynomial R) (d : ℕ) (r : R) :
+  coeff (monomial 0 r * p) d = r * coeff p d :=
+coeff_monomial_mul p 0 d r
 
 end coeff
 
@@ -515,6 +541,7 @@ section ring
 variables [ring R]
 
 instance : ring (polynomial R) := add_monoid_algebra.ring
+
 end ring
 
 section comm_semiring
@@ -524,6 +551,17 @@ local attribute [instance] coeff_coe_to_fun
 
 instance : comm_semiring (polynomial R) := add_monoid_algebra.comm_semiring
 instance : algebra R (polynomial R) := add_monoid_algebra.algebra
+
+-- section
+-- variables [ring A] [algebra R A]
+
+-- instance algebra_of_algebra : algebra R (polynomial A) := add_monoid_algebra.algebra
+
+-- lemma algebra_map_apply (r : R) :
+--   algebra_map R (polynomial A) r = C (algebra_map R A r) :=
+-- rfl
+
+-- end
 
 section eval
 variable {x : R}
@@ -1723,6 +1761,10 @@ eval₂_neg _
 @[simp] lemma eval_sub (p q : polynomial R) (x : R) : (p - q).eval x = p.eval x - q.eval x :=
 eval₂_sub _
 
+lemma coeff_mul_X_sub_monomial {p : polynomial R} {r : R} {a : ℕ} :
+  coeff (p * (X - monomial 0 r)) (a + 1) = coeff p a - coeff p (a + 1) * r :=
+by simp [mul_sub]
+
 end ring
 
 section comm_ring
@@ -2154,6 +2196,33 @@ begin
      ... ≤ 1 : zero_le 1, },
   { haveI : nonzero R := ⟨h⟩,
     exact le_of_eq nat_degree_X_sub_monomial_zero, }
+end
+
+/--
+The evaluation map is not generally multiplicative when the coefficient ring is noncommutative,
+but nevertheless any polynomial of the form `p * (X - monomial 0 r)` is sent to zero
+when evaluated at `r`.
+
+This is the key step in our proof of the Cayley-Hamilton theorem.
+-/
+lemma eval_mul_X_sub_C {p : polynomial R} (r : R) :
+  (p * (X - C r)).eval r = 0 :=
+begin
+  simp only [eval, eval₂, C_def, ring_hom.id_apply],
+  have bound := calc
+    (p * (X - monomial 0 r)).nat_degree
+         ≤ p.nat_degree + (X - monomial 0 r).nat_degree : nat_degree_mul_le
+     ... ≤ p.nat_degree + 1 : add_le_add_left nat_degree_X_sub_monomial_zero_le _
+     ... < p.nat_degree + 2 : lt_add_one _,
+  rw sum_over_range' _ _ (p.nat_degree + 2) bound,
+  swap,
+  { simp, },
+  rw sum_range_succ',
+  conv_lhs {
+    congr, apply_congr, skip,
+    rw [coeff_mul_X_sub_monomial, sub_mul, mul_assoc, ←pow_succ],
+  },
+  simp [sum_range_sub', coeff_single],
 end
 
 end ring

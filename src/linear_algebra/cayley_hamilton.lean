@@ -5,7 +5,6 @@ Authors: Scott Morrison
 -/
 import ring_theory.matrix_algebra
 import ring_theory.polynomial_algebra
-import data.polynomial_cayley_hamilton
 import linear_algebra.nonsingular_inverse
 
 /-!

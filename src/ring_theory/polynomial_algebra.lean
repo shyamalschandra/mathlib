@@ -23,7 +23,6 @@ coeff (matrix_polynomial_equiv_polynomial_matrix m) k i j = coeff (m i j) k
 
 universes u v w
 
-
 open_locale tensor_product
 
 open polynomial
@@ -38,7 +37,7 @@ variables (A : Type v) [ring A] [algebra R A]
 -- TODO move this back to `polynomial.lean`?
 instance turkle : algebra R (polynomial A) := add_monoid_algebra.algebra
 
-lemma turkle_map_apply (r : R) :
+lemma polynomial.algebra_map_apply (r : R) :
   algebra_map R (polynomial A) r = C (algebra_map R A r) :=
 rfl
 
@@ -50,16 +49,6 @@ The bare function underlying `A ⊗[R] polynomial R →ₐ[R] polynomial A`, on 
 -/
 def to_fun (a : A) (p : polynomial R) : polynomial A :=
 p.sum (λ n r, monomial n (a * algebra_map R A r))
-
--- TODO move this
-@[simp] lemma monomial_zero (i : ℕ) :
-  monomial i (0 : A) = 0 :=
-by simp [monomial]
-
--- TODO move this
-@[simp] lemma monomial_add (i : ℕ) (r s : A) :
-  monomial i (r + s) = monomial i r + monomial i s :=
-by simp [monomial]
 
 /--
 (Implementation detail).
@@ -80,7 +69,7 @@ def to_fun_linear_right (a : A) : polynomial R →ₗ[R] polynomial A :=
           ← mul_assoc],
       congr' 1,
       rw [← algebra.commutes, ← algebra.commutes],
-      simp only [ring_hom.map_mul, turkle_map_apply, mul_assoc] },
+      simp only [ring_hom.map_mul, polynomial.algebra_map_apply, mul_assoc] },
     { intro i, simp only [ring_hom.map_zero, mul_zero, monomial_zero] },
   end,
   map_add' := λ p q,
@@ -121,7 +110,8 @@ tensor_product.lift (to_fun_bilinear R A)
 
 -- We apparently need to provide the decidable instance here
 -- in order to successfully rewrite by this lemma.
-lemma to_fun_linear_mul_tmul_mul_aux_1 (p : polynomial R) (k : ℕ) (h : decidable (¬p.coeff k = 0)) (a : A) :
+lemma to_fun_linear_mul_tmul_mul_aux_1
+  (p : polynomial R) (k : ℕ) (h : decidable (¬p.coeff k = 0)) (a : A) :
   ite (¬coeff p k = 0) (a * (algebra_map R A) (coeff p k)) 0 = a * (algebra_map R A) (coeff p k) :=
 begin
   haveI := h,
@@ -168,44 +158,20 @@ begin
   { simp, },
 end
 
--- The following declaration is SLOOOOOOW
-/-
-polynomial_algebra.lean:142:4: information
-parsing took 0.217ms
-polynomial_algebra.lean:142:4: information
-elaboration of to_fun_alg_hom took 8.14s        ---- !!!!
-polynomial_algebra.lean:142:4: information
-type checking of to_fun_alg_hom took 75.8ms
-polynomial_algebra.lean:142:4: information
-decl post-processing of to_fun_alg_hom took 71ms
--/
-
--- set_option profiler true
-
 /--
 (Implementation detail).
 The algebra homomorphism `A ⊗[R] polynomial R →ₐ[R] polynomial A`.
 -/
+-- FIXME This takes about 8 seconds to elaborate. Why?
 def to_fun_alg_hom : A ⊗[R] polynomial R →ₐ[R] polynomial A :=
-alg_hom_of_linear_map_tensor_product (to_fun_linear R A)
+alg_hom_of_linear_map_tensor_product
+  (to_fun_linear R A)
   (to_fun_linear_mul_tmul_mul R A)
   (to_fun_linear_algebra_map_tmul_one R A)
 
 @[simp] lemma to_fun_alg_hom_apply_tmul (a : A) (p : polynomial R) :
   to_fun_alg_hom R A (a ⊗ₜ[R] p) = p.sum (λ n r, monomial n (a * (algebra_map R A) r)) :=
 by simp [to_fun_alg_hom, to_fun_linear, to_fun_bilinear, to_fun_linear_right, to_fun]
-
--- next one is also relatively slow
-/-
-polynomial_algebra.lean:163:4: information
-parsing took 0.292ms
-polynomial_algebra.lean:163:4: information
-elaboration of inv_fun took 1.25s
-polynomial_algebra.lean:163:4: information
-type checking of inv_fun took 30.5ms
-polynomial_algebra.lean:163:4: information
-decl post-processing of inv_fun took 27.7ms
--/
 
 /--
 (Implementation detail.)
@@ -274,8 +240,6 @@ def polynomial_equiv_tensor : polynomial A ≃ₐ[R] (A ⊗[R] polynomial R) :=
 alg_equiv.symm
 { ..(polynomial_equiv_tensor.to_fun_alg_hom R A), ..(polynomial_equiv_tensor.equiv R A) }
 
--- TODO update these if the definitions get changed above!
-
 @[simp]
 lemma polynomial_equiv_tensor_apply (p : polynomial A) :
   polynomial_equiv_tensor R A p =
@@ -298,6 +262,10 @@ variables {n : Type w} [fintype n] [decidable_eq n]
 
 /--
 The algebra isomorphism stating "matrices of polynomials are the same as polynomials of matrices".
+
+(You probably shouldn't attempt to use this underlying definition ---
+it's an algebra equivalence, and characterised extensionally by the lemma
+`matrix_polynomial_equiv_polynomial_matrix_coeff_apply` below.)
 -/
 noncomputable def matrix_polynomial_equiv_polynomial_matrix :
   matrix n n (polynomial R) ≃ₐ[R] polynomial (matrix n n R) :=
@@ -350,6 +318,16 @@ begin
     split_ifs,
     { rcases h with ⟨rfl, rfl⟩, simp [std_basis_matrix], },
     { simp [std_basis_matrix, h], }, },
+end
+
+@[simp] lemma matrix_polynomial_equiv_polynomial_matrix_symm_apply_coeff
+  (p : polynomial (matrix n n R)) (i j : n) (k : ℕ) :
+  coeff (matrix_polynomial_equiv_polynomial_matrix.symm p i j) k = coeff p k i j :=
+begin
+  have t : p = matrix_polynomial_equiv_polynomial_matrix
+    (matrix_polynomial_equiv_polynomial_matrix.symm p) := by simp,
+  conv_rhs { rw t, },
+  simp only [matrix_polynomial_equiv_polynomial_matrix_coeff_apply],
 end
 
 lemma matrix_polynomial_equiv_polynomial_matrix_smul_one (p : polynomial R) :
