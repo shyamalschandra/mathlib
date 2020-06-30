@@ -361,7 +361,7 @@ p.sum (λ e a, f a * x ^ e)
 finsupp.sum_zero_index
 
 @[simp] lemma eval₂_C : (C a).eval₂ f x = f a :=
-(sum_single_index $ by rw [f.map_zero, zero_mul]).trans $ by rw [pow_zero, mul_one]
+(sum_single_index $ by rw [f.map_zero, zero_mul]).trans $ by simp [pow_zero, mul_one]
 
 @[simp] lemma eval₂_X : X.eval₂ f x = x :=
 (sum_single_index $ by rw [f.map_zero, zero_mul]).trans $ by rw [f.map_one, one_mul, pow_one]

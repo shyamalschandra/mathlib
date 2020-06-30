@@ -454,7 +454,7 @@ lemma vec_mul_vec_eq (w : m → α) (v : n → α) :
 by { ext i j, simp [vec_mul_vec, mul_val], refl }
 
 variables [decidable_eq m] [decidable_eq n]
-#where
+
 /--
 `std_basis_matrix i j a` is the matrix with `a` in the `i`-th row, `j`-th column,
 and zeroes elsewhere.
