@@ -84,7 +84,7 @@ begin
   -- evaluation at `M` is not multiplicative.
   -- However, any polynomial which is a product of the form $N * (t I - M)$
   -- is sent to zero, because the evaluation function puts the polynomial variable
-  -- to the right of any coefficients.
+  -- to the right of any coefficients, so everything telescopes.
   apply_fun (λ p, p.eval M) at h,
   rw eval_mul_X_sub_C at h,
   -- Now $χ_M (t) I$, when thought of as a polynomial of matrices

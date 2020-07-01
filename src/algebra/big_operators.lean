@@ -248,10 +248,10 @@ begin
   apply h, cc
 end
 
-
+/-- An uncurried version of `prod_product`. -/
 @[to_additive]
 lemma prod_product' {s : finset γ} {t : finset α} {f : γ → α → β} :
-  (∏ x in s.product t, f x.fst x.snd) = ∏ x in s, ∏ y in t, f x y :=
+  (∏ x in s.product t, f x.1 x.2) = ∏ x in s, ∏ y in t, f x y :=
 by rw prod_product
 
 @[to_additive]
