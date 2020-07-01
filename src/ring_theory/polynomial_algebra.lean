@@ -70,13 +70,13 @@ def to_fun_linear_right (a : A) : polynomial R →ₗ[R] polynomial A :=
       congr' 1,
       rw [← algebra.commutes, ← algebra.commutes],
       simp only [ring_hom.map_mul, polynomial.algebra_map_apply, mul_assoc] },
-    { intro i, simp only [ring_hom.map_zero, mul_zero, monomial_zero] },
+    { intro i, simp only [ring_hom.map_zero, mul_zero, monomial_zero_right] },
   end,
   map_add' := λ p q,
   begin
     simp only [to_fun],
     rw finsupp.sum_add_index,
-    { simp only [monomial_zero, forall_const, ring_hom.map_zero, mul_zero], },
+    { simp only [monomial_zero_right, forall_const, ring_hom.map_zero, mul_zero], },
     { intros i r s, simp only [ring_hom.map_add, mul_add, monomial_add], },
   end, }
 
@@ -142,9 +142,9 @@ begin
     finset.sum_ite_eq', finsupp.mem_support_iff, ne.def, coeff_mul, finset_sum_coeff, coeff_single,
     finset.sum_ite_eq', finsupp.mem_support_iff, ne.def,
     mul_ite, mul_zero, ite_mul, zero_mul, apply_eq_coeff],
-  simp_rw [ite_mul_zero_left (¬coeff p₁ _ = 0) (a₁ * (algebra_map R A) (coeff p₁ _)),
-    ite_mul_zero_right (¬coeff p₂ _ = 0) (ite _ _ _),
-    to_fun_linear_mul_tmul_mul_aux_1, to_fun_linear_mul_tmul_mul_aux_2],
+  simp_rw [ite_mul_zero_left (¬coeff p₁ _ = 0) (a₁ * (algebra_map R A) (coeff p₁ _))],
+  simp_rw [ite_mul_zero_right (¬coeff p₂ _ = 0) _ (_ * _)],
+  simp_rw [to_fun_linear_mul_tmul_mul_aux_1, to_fun_linear_mul_tmul_mul_aux_2],
 end
 
 lemma to_fun_linear_algebra_map_tmul_one (r : R) :
@@ -153,7 +153,7 @@ begin
   dsimp [to_fun_linear],
   simp only [lift.tmul],
   dsimp [to_fun_bilinear, to_fun_linear_right, to_fun],
-  rw [← C_1, C_def, finsupp.sum_single_index],
+  rw [← C_1, ←monomial_zero_left, finsupp.sum_single_index],
   { simp, refl, },
   { simp, },
 end
