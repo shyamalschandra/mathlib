@@ -559,18 +559,18 @@ variables [comm_semiring R] {p q r : polynomial R}
 local attribute [instance] coeff_coe_to_fun
 
 instance : comm_semiring (polynomial R) := add_monoid_algebra.comm_semiring
-instance : algebra R (polynomial R) := add_monoid_algebra.algebra
+-- instance : algebra R (polynomial R) := add_monoid_algebra.algebra
 
--- section
--- variables [ring A] [algebra R A]
+section
+variables [semiring A] [algebra R A]
 
--- instance algebra_of_algebra : algebra R (polynomial A) := add_monoid_algebra.algebra
+instance algebra_of_algebra : algebra R (polynomial A) := add_monoid_algebra.algebra
 
--- lemma algebra_map_apply (r : R) :
---   algebra_map R (polynomial A) r = C (algebra_map R A r) :=
--- rfl
+lemma algebra_map_apply (r : R) :
+  algebra_map R (polynomial A) r = C (algebra_map R A r) :=
+rfl
 
--- end
+end
 
 section eval
 variable {x : R}

@@ -8,9 +8,10 @@ import ring_theory.matrix_algebra
 import data.polynomial
 
 /-!
-We show `polynomial A ≃ₐ[R] (A ⊗[R] polynomial R)`,
-and combining this with the isomorphism `matrix n n A ≃ₐ[R] (A ⊗[R] matrix n n R)` proved earlier,
-we obtain
+Given `[comm_ring R] [ring A] [algebra R A]`
+we show `polynomial A ≃ₐ[R] (A ⊗[R] polynomial R)`.
+Combining this with the isomorphism `matrix n n A ≃ₐ[R] (A ⊗[R] matrix n n R)` proved earlier
+in `ring_theory.matrix_algebra`, we obtain the algebra isomorphism
 ```
 def matrix_polynomial_equiv_polynomial_matrix :
   matrix n n (polynomial R) ≃ₐ[R] polynomial (matrix n n R)
@@ -19,6 +20,8 @@ which is characterized by
 ```
 coeff (matrix_polynomial_equiv_polynomial_matrix m) k i j = coeff (m i j) k
 ```
+
+We will use this algebra isomorphism to prove the Cayley-Hamilton theorem.
 -/
 
 universes u v w
@@ -31,15 +34,14 @@ open algebra.tensor_product (alg_hom_of_linear_map_tensor_product include_left)
 
 noncomputable theory
 
-variables (R : Type u) [comm_ring R]
-variables (A : Type v) [ring A] [algebra R A]
+variables (R A : Type*)
+variables [comm_ring R]
+variables [ring A] [algebra R A]
 
--- TODO move this back to `polynomial.lean`?
-instance turkle : algebra R (polynomial A) := add_monoid_algebra.algebra
-
-lemma polynomial.algebra_map_apply (r : R) :
-  algebra_map R (polynomial A) r = C (algebra_map R A r) :=
-rfl
+-- The instance set up in `data.polynomial` allows `[comm_semiring R]` and `[semiring A]`.
+-- Here we provide a specialisation, as otherwise some typeclass inference problems below
+-- cause deterministic timeouts. Suggestions for better fixes welcome.
+instance algebra_of_algebra' : algebra R (polynomial A) := polynomial.algebra_of_algebra
 
 namespace polynomial_equiv_tensor
 
@@ -162,7 +164,7 @@ end
 (Implementation detail).
 The algebra homomorphism `A ⊗[R] polynomial R →ₐ[R] polynomial A`.
 -/
--- FIXME This takes about 8 seconds to elaborate. Why?
+-- TODO This takes about 8 seconds to elaborate. Suggestions welcome.
 def to_fun_alg_hom : A ⊗[R] polynomial R →ₐ[R] polynomial A :=
 alg_hom_of_linear_map_tensor_product
   (to_fun_linear R A)
