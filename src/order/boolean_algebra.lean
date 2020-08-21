@@ -117,3 +117,12 @@ instance boolean_algebra_Prop : boolean_algebra Prop :=
 instance pi.boolean_algebra {α : Type u} {β : Type v} [boolean_algebra β] :
   boolean_algebra (α → β) :=
 by pi_instance
+
+instance order_dual.boolean_algebra {α : Type*} [boolean_algebra α] :
+  boolean_algebra (order_dual α) :=
+{ compl := (compl : α → α),
+  sdiff := λ x y : α, (x ⊔ yᶜ : α),
+  sdiff_eq := λ _ _, rfl,
+  inf_compl_le_bot := boolean_algebra.top_le_sup_compl,
+  top_le_sup_compl := boolean_algebra.inf_compl_le_bot,
+.. (infer_instance : bounded_distrib_lattice (order_dual α)) }

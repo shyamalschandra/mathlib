@@ -433,4 +433,11 @@ begin
   convert f.symm.to_rel_embedding.le_map_sup; simp,
 end
 
+def boolean_algebra.compl_order_iso (α : Type*) [boolean_algebra α] : α ≃o order_dual α :=
+{ to_fun := compl,
+  inv_fun := compl,
+  left_inv := λ _, compl_compl',
+  right_inv := λ _, compl_compl',
+  map_rel_iff' := λ _ _, compl_le_compl_iff_le.symm, }
+
 end lattice_isos
