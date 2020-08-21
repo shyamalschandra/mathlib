@@ -363,7 +363,7 @@ end
 /- TODO: also replace `Inf_eq_of_function_Inf_gen`. -/
 end bounded_by
 end outer_measure
-open outer_measure
+open outer_measure measure
 
 section measurable_pi
 variables {α : Type*} {β : α → Type*} [Πa, measurable_space (β a)]
@@ -395,7 +395,34 @@ begin
   { simp [←not_nonempty_iff_eq_empty, univ_pi_nonempty_iff.mp h, is_measurable_pi_of_nonempty h] }
 end
 
+lemma measurable_pi {γ} [measurable_space γ] {f : γ → Π i, β i} :
+  measurable f ↔ ∀ x, measurable (λ c, f c x) :=
+⟨λ hf x, (measurable_pi_apply _).comp hf, measurable_pi_lambda f⟩
+
 end measurable_pi
+
+section measurable
+
+variables {α β γ: Type*} [measurable_space α] [measurable_space β] [measurable_space γ]
+
+lemma measurable_measure {μ : α → measure β} :
+  measurable μ ↔ ∀(s : set β) (hs : is_measurable s), measurable (λb, μ b s) :=
+⟨λ hμ s hs, (measurable_coe hs).comp hμ, measurable_of_measurable_coe μ⟩
+
+lemma measurable_prod_mk_left {x : α} : measurable (@prod.mk _ β x) :=
+measurable_const.prod_mk measurable_id
+
+lemma measurable_prod_mk_right {y : β} : measurable (λ x : α, (x, y)) :=
+measurable_id.prod_mk measurable_const
+
+lemma measurable.prod_mk : measurable (@prod.mk α β) :=
+measurable_pi_lambda _ $ λ x, measurable_prod_mk_right
+
+lemma measurable_prod {f : α → β × γ} : measurable f ↔
+  measurable (λa, (f a).1) ∧ measurable (λa, (f a).2) :=
+⟨λ hf, ⟨measurable_fst.comp hf, measurable_snd.comp hf⟩, λ h, measurable.prod h.1 h.2⟩
+
+end measurable
 
 section measure_pi
 
@@ -513,7 +540,10 @@ end measure_pi
 
 /-! ### Prod -/
 
-variables {α β : Type*} [measurable_space α] [measurable_space β]
+variables {α β γ : Type*} [measurable_space α] [measurable_space β] [measurable_space γ]
+
+def is_pi_system {α} (C : set (set α)) : Prop :=
+∀ ⦃s t : set α⦄, s ∈ C → t ∈ C → (s ∩ t).nonempty → s ∩ t ∈ C
 
 lemma generate_from_prod : generate_from
     (image2 set.prod { s | is_measurable s } { t | is_measurable t } : set (set (α × β))) =
@@ -527,6 +557,11 @@ begin
     exact ⟨univ, s, is_measurable.univ, hs, univ_prod⟩ }
 end
 
+lemma is_pi_system_prod :
+  is_pi_system (image2 set.prod { s : set α | is_measurable s } { t : set β | is_measurable t }) :=
+by { rintro _ _ ⟨s₁, t₁, hs₁, ht₁, rfl⟩ ⟨s₂, t₂, hs₂, ht₂, rfl⟩ _, rw [prod_inter_prod],
+     exact mem_image2_of_mem (hs₁.inter hs₂) (ht₁.inter ht₂) }
+
 
 /-
 Use `sigma_finite_mk` to create an instance without the requirement that `spanning_sets` is
@@ -538,7 +573,7 @@ def sigma_finite_mk {μ : measure α} {s : set α} (sets : ℕ → set α)
   sigma_finite μ s :=
 { spanning_sets := accumulate sets,
   monotone_spanning_sets := monotone_accumulate,
-  measurable_spanning_sets :=
+  is_measurable_spanning_sets :=
     λ i, is_measurable.Union $ λ j, is_measurable.Union_Prop $ λ hij, h1 j,
   measure_spanning_sets_lt_top :=
     by { intro i, rw [accumulate_nat],
@@ -548,23 +583,9 @@ def sigma_finite_mk {μ : measure α} {s : set α} (sets : ℕ → set α)
       exact (finset.range (i+1)).countable_to_set },
   Union_spanning_sets := by { rw [Union_accumulate, h3] } }
 
-lemma monotone_spanning_sets (μ : measure α) (s : set α) [sigma_finite μ s] :
-  monotone (spanning_sets μ s) :=
-sigma_finite.monotone_spanning_sets
-
-lemma is_measurable_spanning_sets (μ : measure α) (s : set α) [sigma_finite μ s] (i : ℕ) :
-  is_measurable (spanning_sets μ s i) :=
-sigma_finite.measurable_spanning_sets i
-
 namespace measure
 
 variables (μ : measure α) (ν : measure β)
-
-lemma ext_sigma_finite (C : set (set α)) (hA : _inst_1 = generate_from C)
-  (hC : ∀⦃s t : set α⦄, s ∈ C → t ∈ C → (s ∩ t).nonempty → s ∩ t ∈ C) {μ ν : measure α}
-  (B : ℕ → set α) (h1B : (⋃ i, B i) = univ) (h2B : ∀ i, B i ∈ C) (h3B : monotone B)
-  (hμB : ∀ i, μ (B i) < ⊤) (hνB : ∀ i, ν (B i) < ⊤) (hμν : ∀ s ∈ C, μ s = ν s) : μ = ν :=
-sorry
 
 lemma measure_if {x : β} {t : set β} {s : set α} {μ : measure α} :
   μ (if x ∈ t then s else ∅) = indicator t (λ _, μ s) x :=
@@ -579,14 +600,61 @@ bind μ $ λ x : α, map (prod.mk x) ν
 
 /-- The symmetric version of the product of two measures. -/
 protected def prod_symm : measure (α × β) :=
-bind ν (λ y : β, map (λ x, (x, y)) μ)
+bind ν $ λ y : β, map (λ x, (x, y)) μ
 
 variables {μ ν}
 
-lemma measurable.map {ι} [measurable_space ι] {f : ι → α → β} (hf : ∀ i, measurable (f i)) :
-  measurable (λx, map (f x) μ) :=
+-- instance Prop.measurable_space : measurable_space Prop := ⊤
+-- instance set.measurable_space : measurable_space (set α) := measurable_space.pi
+
+-- lemma measurable.measure_apply {ι} [measurable_space ι] {s : ι → set α}
+--   (hf : ∀ i, is_measurable (s i)) : measurable (λi, μ (s i)) :=
+-- begin
+--   refine measurable.comp _ _,
+-- end
+
+--measurable_supr
+
+def directed_supr {ι} [nonempty ι] [partial_order ι] {μ : ι → measure α} (hμ : monotone μ) :
+  measure α :=
 begin
-  sorry
+  apply measure.of_measurable (λ s _, ⨆ i, μ i s) (by simp),
+
+end
+
+
+/-- A directed supremum of measures applied is evaluated as a supremum on `ennreal`. -/
+lemma supr_apply_of_monotone {ι} [partial_order ι] {μ : ι → measure α} (hμ : monotone μ)
+  {s : set α} (hs : is_measurable s) : (⨆ i, μ i) s = ⨆ i, μ i s :=
+begin
+  refine le_antisymm _ _,
+  {  },
+  { refine supr_le _, intro i, exact (le_supr μ i : _) s hs },
+end
+
+lemma supr_restrict {ι} {μ : measure α} {t : ι → set α} :
+  (⨆ i, μ.restrict (t i)) = μ.restrict (⋃ i, t i) :=
+begin
+  ext1 s hs, simp [hs, outer_measure.supr_apply],
+end
+
+lemma supr_restrict_spanning_sets {μ : measure α} [sigma_finite μ univ] {s : set α} :
+  ⨆ i, μ.restrict (spanning_sets μ univ i) s = μ s :=
+begin
+
+end
+
+/- Proposition 5.1.3 -/
+lemma measurable.map_prod_mk {μ : measure β} : measurable (λx, map (prod.mk x : β → α × β) μ) :=
+begin
+  apply measurable_of_measurable_coe, intros s hs,
+  simp_rw [map_apply measurable_prod_mk_left hs],
+  refine induction_on_inter generate_from_prod.symm is_pi_system_prod _ _ _ _ hs,
+  { simp [measurable_const] },
+  { rintro _ ⟨s, t, hs, ht, rfl⟩, simp only [mk_preimage_prod_right_eq_if, measure_if],
+    exact measurable_const.indicator hs },
+  { intros t ht h2t, simp_rw [preimage_compl], sorry },
+  { intros f h1f h2f h3f, simp_rw [preimage_Union], sorry },
 end
 
 @[simp] lemma prod_apply {s : set (α × β)} (hs : is_measurable s) :
@@ -594,8 +662,8 @@ end
 begin
   rw [measure.prod, bind_apply hs],
   congr, ext x : 1, rw [map_apply _ hs],
-  apply measurable_const.prod_mk measurable_id,
-  refine measurable.map (λ _, measurable_const.prod_mk measurable_id)
+  apply measurable_prod_mk_left,
+  refine measurable.map_prod_mk
 end
 
 @[simp] lemma prod_prod {s : set α} {t : set β} (hs : is_measurable s) (ht : is_measurable t) :
@@ -609,8 +677,8 @@ by simp_rw [prod_apply (hs.prod ht), mk_preimage_prod_right_eq_if, measure_if,
 begin
   rw [measure.prod_symm, bind_apply hs],
   congr, ext x : 1, rw [map_apply _ hs],
-  apply measurable_id.prod_mk measurable_const,
-  refine measurable.map (λ _, measurable_id.prod_mk measurable_const)
+  apply measurable_prod_mk_right,
+  sorry
 end
 
 @[simp] lemma prod_symm_prod {s : set α} {t : set β} (hs : is_measurable s) (ht : is_measurable t) :
@@ -618,26 +686,58 @@ end
 by simp_rw [prod_symm_apply (hs.prod ht), mk_preimage_prod_left_eq_if, measure_if,
   lintegral_indicator _ ht, lintegral_const, restrict_apply is_measurable.univ, univ_inter]
 
-lemma prod_eq_prod_symm [sigma_finite μ univ] [sigma_finite ν univ] : μ.prod ν = μ.prod_symm ν :=
+variables  [sigma_finite μ univ] [sigma_finite ν univ]
+
+lemma prod_unique {μν₁ μν₂ : measure (α × β)}
+  (h₁ : ∀ s t, is_measurable s → is_measurable t → μν₁ (s.prod t) = μ s * ν t)
+  (h₂ : ∀ s t, is_measurable s → is_measurable t → μν₂ (s.prod t) = μ s * ν t) : μν₁ = μν₂ :=
 begin
-  refine ext_sigma_finite _ generate_from_prod.symm _
+  refine ext_sigma_finite _ generate_from_prod.symm is_pi_system_prod
     (λ i, (spanning_sets μ univ i).prod (spanning_sets ν univ i)) _ _ _ _ _ _,
-  { rintro _ _ ⟨s₁, t₁, hs₁, ht₁, rfl⟩ ⟨s₂, t₂, hs₂, ht₂, rfl⟩ _, rw [prod_inter_prod],
-    exact mem_image2_of_mem (hs₁.inter hs₂) (ht₁.inter ht₂) },
   { rw [Union_prod_of_monotone (monotone_spanning_sets μ _) (monotone_spanning_sets ν _)],
     simp_rw [Union_spanning_sets, univ_prod_univ] },
   { intro i, apply mem_image2_of_mem; apply is_measurable_spanning_sets },
   { intros i j hij, apply prod_mono; refine monotone_spanning_sets _ _ hij },
-  { intro i, rw [prod_prod], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
+  { intro i, rw [h₁], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
     all_goals { apply is_measurable_spanning_sets } },
-  { intro i, rw [prod_symm_prod], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
+  { intro i, rw [h₂], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
     all_goals { apply is_measurable_spanning_sets } },
   { rintro _ ⟨s, t, hs, ht, rfl⟩, simp * at * }
 end
 
-lemma prod_apply_symm [sigma_finite μ univ] [sigma_finite ν univ] {s : set (α × β)}
-  (hs : is_measurable s) : μ.prod ν s = ∫⁻ y, μ ((λ x, (x, y)) ⁻¹' s) ∂ν :=
+lemma prod_eq_prod_symm : μ.prod ν = μ.prod_symm ν :=
+prod_unique (λ _ _, prod_prod) (λ _ _, prod_symm_prod)
+
+lemma prod_apply_symm {s : set (α × β)} (hs : is_measurable s) :
+  μ.prod ν s = ∫⁻ y, μ ((λ x, (x, y)) ⁻¹' s) ∂ν :=
 by rw [prod_eq_prod_symm, prod_symm_apply hs]
+
+/-- Tonelli's Theorem -/
+lemma measurable_lintegral_prod_right (f : α × β → ennreal) :
+  measurable (λ x, ∫⁻ y, f (x, y) ∂ν) :=
+begin
+
+end
+
+lemma measurable_lintegral_prod_left (f : α × β → ennreal) :
+  measurable (λ y, ∫⁻ x, f (x, y) ∂μ) :=
+begin
+
+end
+
+/-- Tonelli's Theorem -/
+lemma lintegral_prod (f : α × β → ennreal) :
+  ∫⁻ z, f z ∂(μ.prod ν) = ∫⁻ x, ∫⁻ y, f (x, y) ∂ν ∂μ :=
+begin
+
+end
+
+/-- symmetric version of Tonelli's Theorem -/
+lemma lintegral_prod_symm (f : α × β → ennreal) :
+  ∫⁻ z, f z ∂(μ.prod ν) = ∫⁻ y, ∫⁻ x, f (x, y) ∂μ ∂ν :=
+begin
+
+end
 
 end measure
 
@@ -646,3 +746,5 @@ end
 end measure_theory
 
 -- #lint
+
+#print nat.has_Inf
