@@ -21,10 +21,12 @@ Fubini's theorem
 -/
 noncomputable theory
 open_locale classical big_operators
+open function set measure_theory.outer_measure measurable_space
+
 
 namespace function
 /-- Evaluation a function to an argument. Useful if you want to talk about the partially applied
-  `function.apply i : (Π i, α i) → α i`. -/
+  `function.eval i : (Π i, α i) → α i`. -/
 @[reducible] def eval {ι} {α : ι → Type*} (i : ι) (f : Π i, α i) : α i := f i
 
 @[simp] lemma eval_apply {ι} {α : ι → Type*} (i : ι) (f : Π i, α i) : eval i f = f i := rfl
@@ -37,31 +39,43 @@ begin
   sorry
 end
 
-
 end function
+open function
 
-open function measure_theory.outer_measure
 
 namespace set
+
+section
+
+variables {α β : Type*}
+
+lemma univ_prod {t : set β} : set.prod (univ : set α) t = prod.snd ⁻¹' t :=
+by simp [prod_eq]
+
+lemma prod_univ {s : set α} : set.prod s (univ : set β) = prod.fst ⁻¹' s :=
+by simp [prod_eq]
+
+end
+
 section
 variables {ι : Type*} {α : ι → Type*} {s : set ι} {t : Π i, set (α i)}
 @[simp] lemma mem_pi {f : Π i, α i} : f ∈ s.pi t ↔ ∀ i ∈ s, f i ∈ t i :=
 by refl
 
-@[simp] lemma mem_pi_univ {f : Π i, α i} : f ∈ pi univ t ↔ ∀ i, f i ∈ t i :=
+@[simp] lemma mem_univ_pi {f : Π i, α i} : f ∈ pi univ t ↔ ∀ i, f i ∈ t i :=
 by simp
 
 lemma pi_eq_empty {i : ι} (hs : i ∈ s) (ht : t i = ∅) : s.pi t = ∅ :=
 by { ext f, simp only [mem_empty_eq, classical.not_forall, iff_false, mem_pi, classical.not_imp],
      exact ⟨i, hs, by simp [ht]⟩ }
 
-lemma pi_univ_eq_empty {i : ι} (ht : t i = ∅) : pi univ t = ∅ :=
+lemma univ_pi_eq_empty {i : ι} (ht : t i = ∅) : pi univ t = ∅ :=
 pi_eq_empty (mem_univ i) ht
 
 lemma pi_nonempty_iff : (s.pi t).nonempty ↔ ∀ i, ∃ x, i ∈ s → x ∈ t i :=
 by simp [classical.skolem, set.nonempty]
 
-lemma pi_univ_nonempty_iff : (pi univ t).nonempty ↔ ∀ i, (t i).nonempty :=
+lemma univ_pi_nonempty_iff : (pi univ t).nonempty ↔ ∀ i, (t i).nonempty :=
 by simp [classical.skolem, set.nonempty]
 
 lemma pi_eq_empty_iff : s.pi t = ∅ ↔ ∃ i, (α i → false) ∨ (i ∈ s ∧ t i = ∅) :=
@@ -74,8 +88,8 @@ begin
   { rintro (h|h) x, exfalso, exact h x, simp [h] }
 end
 
-lemma pi_univ_eq_empty_iff : pi univ t = ∅ ↔ ∃ i, t i = ∅ :=
-by simp [← not_nonempty_iff_eq_empty, pi_univ_nonempty_iff]
+lemma univ_pi_eq_empty_iff : pi univ t = ∅ ↔ ∃ i, t i = ∅ :=
+by simp [← not_nonempty_iff_eq_empty, univ_pi_nonempty_iff]
 
 lemma eval_image_pi {i : ι} (hs : i ∈ s) (ht : (s.pi t).nonempty) : eval i '' s.pi t = t i :=
 begin
@@ -84,10 +98,10 @@ begin
   { intro hg, refine ⟨function.update f i x, _, by simp⟩,
     intros j hj, by_cases hji : j = i,
     { subst hji, simp [hg] },
-    { simp at hf, simp [hji, hf, hj] }},
+    { rw [mem_pi] at hf, simp [hji, hf, hj] }},
 end
 
-@[simp] lemma eval_image_pi_univ {i : ι} (ht : (pi univ t).nonempty) :
+@[simp] lemma eval_image_univ_pi {i : ι} (ht : (pi univ t).nonempty) :
   (λ f : Π i, α i, f i) '' pi univ t = t i :=
 eval_image_pi (mem_univ i) ht
 
@@ -101,7 +115,7 @@ begin
     { rw [update_noteq h], exact hf j hj h }}
 end
 
-lemma update_preimage_pi_univ {i : ι} {f : Π i, α i} (hf : ∀ j ≠ i, f j ∈ t j) :
+lemma update_preimage_univ_pi {i : ι} {f : Π i, α i} (hf : ∀ j ≠ i, f j ∈ t j) :
   (update f i) ⁻¹' pi univ t = t i :=
 update_preimage_pi (mem_univ i) (λ j _, hf j)
 
@@ -112,7 +126,6 @@ end
 
 section
 variables {α β : Type*}
--- rename this and set.push_pull'. Ping Patrick Massot
 lemma image_inter_preimage {f : α → β} {s : set α} {t : set β} : f '' (s ∩ f ⁻¹' t) = f '' s ∩ t :=
 set.push_pull f s t
 
@@ -230,7 +243,12 @@ le_infi (λ _, le_rfl)
 
 end complete_lattice
 
+
+
+
 namespace measure_theory
+
+section
 
 namespace outer_measure
 section bounded_by
@@ -303,15 +321,15 @@ lemma is_measurable_pi_of_nonempty [encodable α] {t : Π i, set (β i)} (h : (p
   is_measurable (pi univ t) ↔ ∀ i, is_measurable (t i) :=
 begin
   rcases h with ⟨f, hf⟩, refine ⟨λ hst i, _, is_measurable.pi⟩,
-  convert measurable_update f hst, rw [update_preimage_pi_univ], exact λ j _, hf j (mem_univ j)
+  convert measurable_update f hst, rw [update_preimage_univ_pi], exact λ j _, hf j (mem_univ j)
 end
 
 lemma is_measurable_pi [encodable α] {t : Π i, set (β i)} :
   is_measurable (pi univ t) ↔ ∀ i, is_measurable (t i) ∨ ∃ i, t i = ∅ :=
 begin
   cases (pi univ t).eq_empty_or_nonempty with h h,
-  { have := pi_univ_eq_empty_iff.mp h, simp [h, pi_univ_eq_empty_iff.mp h] },
-  { simp [←not_nonempty_iff_eq_empty, pi_univ_nonempty_iff.mp h, is_measurable_pi_of_nonempty h] }
+  { have := univ_pi_eq_empty_iff.mp h, simp [h, univ_pi_eq_empty_iff.mp h] },
+  { simp [←not_nonempty_iff_eq_empty, univ_pi_nonempty_iff.mp h, is_measurable_pi_of_nonempty h] }
 end
 
 end measurable_pi
@@ -337,7 +355,7 @@ lemma pi_premeasure_pi' [nonempty ι] {s : Π i, set (α i)} :
   pi_premeasure m (pi univ s) = ∏ i, m i (s i) :=
 begin
   cases (pi univ s).eq_empty_or_nonempty with h h,
-  { rcases pi_univ_eq_empty_iff.mp h with ⟨i, hi⟩,
+  { rcases univ_pi_eq_empty_iff.mp h with ⟨i, hi⟩,
     have : ∃ i, m i (s i) = 0 := ⟨i, by simp [hi]⟩,
     simpa [h, finset.card_univ, zero_pow (fintype.card_pos_iff.mpr _inst_2),
       @eq_comm _ (0 : ennreal), finset.prod_eq_zero_iff] },
@@ -373,7 +391,7 @@ begin
   rw [outer_measure.pi, le_bounded_by'], split,
   { intros h s hs, refine (h _ hs).trans_eq (pi_premeasure_pi hs)  },
   { intros h s hs, refine le_trans (n.mono $ subset_pi_eval_image univ s) (h _ _),
-    simp [pi_univ_nonempty_iff, hs] }
+    simp [univ_pi_nonempty_iff, hs] }
 end
 
 lemma pi_pi_false [encodable ι] (s : Π i, set (α i))
@@ -431,10 +449,33 @@ end measure_pi
 
 
 /-! ### Prod -/
+
+variables {α β : Type*} [measurable_space α] [measurable_space β]
+
+lemma generate_from_prod : generate_from
+    (image2 set.prod { s | is_measurable s } { t | is_measurable t } : set (set (α × β))) =
+  prod.measurable_space :=
+begin
+  apply le_antisymm,
+  { apply generate_from_le, rintro _ ⟨s, t, hs, ht, rfl⟩, rw [prod_eq],
+    exact (measurable_fst hs).inter (measurable_snd ht) },
+  { refine sup_le _ _; rintro _ ⟨s, hs, rfl⟩; apply is_measurable_generate_from,
+    exact ⟨s, univ, hs, is_measurable.univ, prod_univ⟩,
+    exact ⟨univ, s, is_measurable.univ, hs, univ_prod⟩ }
+end
+
+
 namespace measure
 
-variables {α β : Type*} [measurable_space α] [measurable_space β] (μ : measure α) (ν : measure β)
+variables (μ : measure α) (ν : measure β)
 
+lemma ext_sigma_finite (C : set (set α)) (hA : _inst_1 = generate_from C)
+  (hC : ∀⦃s t : set α⦄, s ∈ C → t ∈ C → (s ∩ t).nonempty → s ∩ t ∈ C) {μ ν : measure α}
+  {B : ℕ → set α} (h1B : (⋃ i, B i) = univ) (h2B : ∀ i, B i ∈ C) (h3B : monotone B)
+  (hμB : ∀ i, μ (B i) < ⊤) (hνB : ∀ i, ν (B i) < ⊤) (hμν : ∀ s ∈ C, μ s = ν s) : μ = ν :=
+sorry
+
+/-- The product of two measures. -/
 protected def prod : measure (α × β) :=
 bind μ $ λ x : α, map (prod.mk x) ν
 
@@ -446,6 +487,7 @@ begin
   sorry
 end
 
+#check @prod_inter_prod
 @[simp] lemma prod_apply {s : set (α × β)} (hs : is_measurable s) :
   μ.prod ν s = ∫⁻ x, ν (prod.mk x ⁻¹' s) ∂μ :=
 begin
@@ -453,6 +495,16 @@ begin
   congr, ext x : 1, rw [map_apply _ hs],
   apply measurable_const.prod_mk measurable_id,
   refine measurable.map (λ _, measurable_const.prod_mk measurable_id)
+end
+
+lemma prod_eq_symm [sigma_finite_measure : μ.prod ν = bind ν (λ y : β, map (λ x, (x, y)) μ) :=
+begin
+  refine ext_sigma_finite _ generate_from_prod.symm _ _ _ _ _ _ _,
+  /- prove for rectangles on which both `μ` and `ν` are finite -/
+  /- assume μ and ν σ-finite -/
+  /- show that it is closed under countable disjoint unions -/
+  /- show that this is sufficient -/
+  -- sorry
 end
 
 lemma prod_apply_symm {s : set (α × β)} (hs : is_measurable s) :
@@ -465,6 +517,10 @@ begin
   sorry
 end
 
+
+#check @lintegral_supr /- need: Beppo-Levi, Cor 2.4.2 -/
+
+
 lemma prod_eq_symm : μ.prod ν = bind ν (λ y : β, map (λ x, (x, y)) μ) :=
 begin
   simp [measure.prod, bind],
@@ -472,6 +528,8 @@ begin
 end
 
 end measure
+
+end
 
 end measure_theory
 
