@@ -55,6 +55,69 @@ by simp [prod_eq]
 lemma prod_univ {s : set α} : set.prod s (univ : set β) = prod.fst ⁻¹' s :=
 by simp [prod_eq]
 
+@[simp] lemma mk_preimage_prod_left_eq_empty {s : set α} {t : set β} {y : β} (hy : y ∉ t) :
+  (λ x, (x, y)) ⁻¹' s.prod t = ∅ :=
+by { ext z, simp [hy] }
+
+@[simp] lemma mk_preimage_prod_right_eq_empty {s : set α} {t : set β} {x : α} (hx : x ∉ s) :
+  prod.mk x ⁻¹' s.prod t = ∅ :=
+by { ext z, simp [hx] }
+
+lemma mk_preimage_prod_left_eq_if {s : set α} {t : set β} {y : β} :
+  (λ x, (x, y)) ⁻¹' s.prod t = if y ∈ t then s else ∅ :=
+by { split_ifs; simp [h] }
+
+lemma mk_preimage_prod_right_eq_if {s : set α} {t : set β} {x : α} :
+  prod.mk x ⁻¹' s.prod t = if x ∈ s then t else ∅ :=
+by { split_ifs; simp [h] }
+
+end
+
+section
+
+variables {α β γ : Type*} (s : α → set β) {t : α → set γ}
+
+/-- The union of `s y` for `y ≤ x`. -/
+def accumulate [has_le α] (x : α) : set β := ⋃ y ≤ x, s y
+
+variable {s}
+lemma accumulate_def [has_le α] {x : α} : accumulate s x = ⋃ y ≤ x, s y := rfl
+@[simp] lemma mem_accumulate [has_le α] {x : α} {z : β} : z ∈ accumulate s x ↔ ∃ y ≤ x, z ∈ s y :=
+mem_bUnion_iff
+
+lemma subset_accumulate [preorder α] {x : α} : s x ⊆ accumulate s x :=
+λ z, mem_bUnion le_rfl
+
+lemma monotone_accumulate [preorder α] : monotone (accumulate s) :=
+λ x y hxy, bUnion_subset_bUnion_left $ λ z hz, le_trans hz hxy
+
+lemma bUnion_accumulate [preorder α] (y : α) : (⋃ x ≤ y, accumulate s x) = ⋃ x ≤ y, s x :=
+begin
+  apply subset.antisymm,
+  { simp only [subset_def, mem_Union, exists_imp_distrib, mem_accumulate],
+    intros z x hxy x' hx'x hz, exact ⟨x', hx'x.trans hxy, hz⟩ },
+  { exact bUnion_subset_bUnion (λ x hx, ⟨x, hx, subset_accumulate⟩) }
+end
+
+lemma Union_accumulate [preorder α] : (⋃ x, accumulate s x) = ⋃ x, s x :=
+begin
+  apply subset.antisymm,
+  { simp only [subset_def, mem_Union, exists_imp_distrib, mem_accumulate],
+    intros z x x' hx'x hz, exact ⟨x', hz⟩ },
+  { exact Union_subset_Union (λ i, subset_accumulate),  }
+end
+
+lemma accumulate_nat (s : ℕ → set β) {n : ℕ} : accumulate s n = ⋃ y ∈ finset.range (n+1), s y :=
+by { ext, simp [nat.lt_succ_iff] }
+
+lemma Union_prod_of_monotone [semilattice_sup α] (hs : monotone s) (ht : monotone t) :
+  (⋃ x, (s x).prod (t x)) = (⋃ x, (s x)).prod (⋃ x, (t x)) :=
+begin
+  ext ⟨z, w⟩, simp only [mem_prod, mem_Union, exists_imp_distrib, and_imp, iff_def], split,
+  { intros x hz hw, exact ⟨⟨x, hz⟩, ⟨x, hw⟩⟩ },
+  { intros x hz x' hw, exact ⟨x ⊔ x', hs le_sup_left hz, ht le_sup_right hw⟩ }
+end
+
 end
 
 section
@@ -66,7 +129,7 @@ by refl
 by simp
 
 lemma pi_eq_empty {i : ι} (hs : i ∈ s) (ht : t i = ∅) : s.pi t = ∅ :=
-by { ext f, simp only [mem_empty_eq, classical.not_forall, iff_false, mem_pi, classical.not_imp],
+by { ext f, simp only [mem_empty_eq, not_forall, iff_false, mem_pi, not_imp],
      exact ⟨i, hs, by simp [ht]⟩ }
 
 lemma univ_pi_eq_empty {i : ι} (ht : t i = ∅) : pi univ t = ∅ :=
@@ -289,7 +352,7 @@ theorem le_bounded_by' {μ : outer_measure α} :
 by { rw [le_bounded_by, forall_congr], intro s, cases s.eq_empty_or_nonempty with h h; simp [h] }
 
 lemma bounded_by_caratheodory {m : set α → ennreal} {s : set α}
-  (hs : ∀t, m (t ∩ s) + m (t \ s) ≤ m t) : (bounded_by m).caratheodory.is_measurable s :=
+  (hs : ∀t, m (t ∩ s) + m (t \ s) ≤ m t) : (bounded_by m).caratheodory.is_measurable' s :=
 begin
   apply of_function_caratheodory, intro t,
   cases t.eq_empty_or_nonempty with h h,
@@ -465,19 +528,58 @@ begin
 end
 
 
+/-
+Use `sigma_finite_mk` to create an instance without the requirement that `spanning_sets` is
+  monotone.
+-/
+
+def sigma_finite_mk {μ : measure α} {s : set α} (sets : ℕ → set α)
+  (h1 : ∀ i, is_measurable (sets i)) (h2 : ∀ i, μ (sets i) < ⊤) (h3 : (⋃ i, sets i) = s) :
+  sigma_finite μ s :=
+{ spanning_sets := accumulate sets,
+  monotone_spanning_sets := monotone_accumulate,
+  measurable_spanning_sets :=
+    λ i, is_measurable.Union $ λ j, is_measurable.Union_Prop $ λ hij, h1 j,
+  measure_spanning_sets_lt_top :=
+    by { intro i, rw [accumulate_nat],
+      apply (measure_bUnion_le _ _).trans_lt,
+      refine (finset.tsum_subtype _ (λ i, μ (sets i))).le.trans_lt _,
+      rw ennreal.sum_lt_top_iff, exact λ j _, h2 j,
+      exact (finset.range (i+1)).countable_to_set },
+  Union_spanning_sets := by { rw [Union_accumulate, h3] } }
+
+lemma monotone_spanning_sets (μ : measure α) (s : set α) [sigma_finite μ s] :
+  monotone (spanning_sets μ s) :=
+sigma_finite.monotone_spanning_sets
+
+lemma is_measurable_spanning_sets (μ : measure α) (s : set α) [sigma_finite μ s] (i : ℕ) :
+  is_measurable (spanning_sets μ s i) :=
+sigma_finite.measurable_spanning_sets i
+
 namespace measure
 
 variables (μ : measure α) (ν : measure β)
 
 lemma ext_sigma_finite (C : set (set α)) (hA : _inst_1 = generate_from C)
   (hC : ∀⦃s t : set α⦄, s ∈ C → t ∈ C → (s ∩ t).nonempty → s ∩ t ∈ C) {μ ν : measure α}
-  {B : ℕ → set α} (h1B : (⋃ i, B i) = univ) (h2B : ∀ i, B i ∈ C) (h3B : monotone B)
+  (B : ℕ → set α) (h1B : (⋃ i, B i) = univ) (h2B : ∀ i, B i ∈ C) (h3B : monotone B)
   (hμB : ∀ i, μ (B i) < ⊤) (hνB : ∀ i, ν (B i) < ⊤) (hμν : ∀ s ∈ C, μ s = ν s) : μ = ν :=
 sorry
+
+lemma measure_if {x : β} {t : set β} {s : set α} {μ : measure α} :
+  μ (if x ∈ t then s else ∅) = indicator t (λ _, μ s) x :=
+begin
+  split_ifs; simp [h],
+end
+
 
 /-- The product of two measures. -/
 protected def prod : measure (α × β) :=
 bind μ $ λ x : α, map (prod.mk x) ν
+
+/-- The symmetric version of the product of two measures. -/
+protected def prod_symm : measure (α × β) :=
+bind ν (λ y : β, map (λ x, (x, y)) μ)
 
 variables {μ ν}
 
@@ -487,7 +589,6 @@ begin
   sorry
 end
 
-#check @prod_inter_prod
 @[simp] lemma prod_apply {s : set (α × β)} (hs : is_measurable s) :
   μ.prod ν s = ∫⁻ x, ν (prod.mk x ⁻¹' s) ∂μ :=
 begin
@@ -497,35 +598,46 @@ begin
   refine measurable.map (λ _, measurable_const.prod_mk measurable_id)
 end
 
-lemma prod_eq_symm [sigma_finite_measure : μ.prod ν = bind ν (λ y : β, map (λ x, (x, y)) μ) :=
+@[simp] lemma prod_prod {s : set α} {t : set β} (hs : is_measurable s) (ht : is_measurable t) :
+  μ.prod ν (s.prod t) = μ s * ν t :=
+by simp_rw [prod_apply (hs.prod ht), mk_preimage_prod_right_eq_if, measure_if,
+  lintegral_indicator _ hs, lintegral_const, restrict_apply is_measurable.univ,
+  univ_inter, mul_comm]
+
+@[simp] lemma prod_symm_apply {s : set (α × β)} (hs : is_measurable s) :
+  μ.prod_symm ν s = ∫⁻ y, μ ((λ x, (x, y)) ⁻¹' s) ∂ν :=
 begin
-  refine ext_sigma_finite _ generate_from_prod.symm _ _ _ _ _ _ _,
-  /- prove for rectangles on which both `μ` and `ν` are finite -/
-  /- assume μ and ν σ-finite -/
-  /- show that it is closed under countable disjoint unions -/
-  /- show that this is sufficient -/
-  -- sorry
+  rw [measure.prod_symm, bind_apply hs],
+  congr, ext x : 1, rw [map_apply _ hs],
+  apply measurable_id.prod_mk measurable_const,
+  refine measurable.map (λ _, measurable_id.prod_mk measurable_const)
 end
 
-lemma prod_apply_symm {s : set (α × β)} (hs : is_measurable s) :
-  μ.prod ν s = ∫⁻ y, μ ((λ x, (x, y)) ⁻¹' s) ∂ν :=
+@[simp] lemma prod_symm_prod {s : set α} {t : set β} (hs : is_measurable s) (ht : is_measurable t) :
+  μ.prod_symm ν (s.prod t) = μ s * ν t :=
+by simp_rw [prod_symm_apply (hs.prod ht), mk_preimage_prod_left_eq_if, measure_if,
+  lintegral_indicator _ ht, lintegral_const, restrict_apply is_measurable.univ, univ_inter]
+
+lemma prod_eq_prod_symm [sigma_finite μ univ] [sigma_finite ν univ] : μ.prod ν = μ.prod_symm ν :=
 begin
-  /- prove for rectangles on which both `μ` and `ν` are finite -/
-  /- assume μ and ν σ-finite -/
-  /- show that it is closed under countable disjoint unions -/
-  /- show that this is sufficient -/
-  sorry
+  refine ext_sigma_finite _ generate_from_prod.symm _
+    (λ i, (spanning_sets μ univ i).prod (spanning_sets ν univ i)) _ _ _ _ _ _,
+  { rintro _ _ ⟨s₁, t₁, hs₁, ht₁, rfl⟩ ⟨s₂, t₂, hs₂, ht₂, rfl⟩ _, rw [prod_inter_prod],
+    exact mem_image2_of_mem (hs₁.inter hs₂) (ht₁.inter ht₂) },
+  { rw [Union_prod_of_monotone (monotone_spanning_sets μ _) (monotone_spanning_sets ν _)],
+    simp_rw [Union_spanning_sets, univ_prod_univ] },
+  { intro i, apply mem_image2_of_mem; apply is_measurable_spanning_sets },
+  { intros i j hij, apply prod_mono; refine monotone_spanning_sets _ _ hij },
+  { intro i, rw [prod_prod], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
+    all_goals { apply is_measurable_spanning_sets } },
+  { intro i, rw [prod_symm_prod], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
+    all_goals { apply is_measurable_spanning_sets } },
+  { rintro _ ⟨s, t, hs, ht, rfl⟩, simp * at * }
 end
 
-
-#check @lintegral_supr /- need: Beppo-Levi, Cor 2.4.2 -/
-
-
-lemma prod_eq_symm : μ.prod ν = bind ν (λ y : β, map (λ x, (x, y)) μ) :=
-begin
-  simp [measure.prod, bind],
-  sorry
-end
+lemma prod_apply_symm [sigma_finite μ univ] [sigma_finite ν univ] {s : set (α × β)}
+  (hs : is_measurable s) : μ.prod ν s = ∫⁻ y, μ ((λ x, (x, y)) ⁻¹' s) ∂ν :=
+by rw [prod_eq_prod_symm, prod_symm_apply hs]
 
 end measure
 
