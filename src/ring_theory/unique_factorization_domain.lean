@@ -13,6 +13,89 @@ import ring_theory.integral_domain
 variables {α : Type*}
 local infix ` ~ᵤ ` : 50 := associated
 
+/-- This class refers to `comm_cancel_monoid_with_zero`s whose divisibility relation
+satisfies the descending chain condition. -/
+class DCC_dvd (α : Type*) [comm_cancel_monoid_with_zero α] : Prop :=
+(well_founded_dvd_not_unit : well_founded (λ a b : α, a ≠ 0 ∧ ∃ x, ¬is_unit x ∧ b = a * x))
+
+instance is_noetherian_ring.DCC_dvd [integral_domain α] [is_noetherian_ring R] :
+  DCC_dvd α :=
+⟨is_noetherian_ring.well_founded_dvd_not_unit⟩
+
+theorem DCC_dvd_iff_well_founded_associates [comm_cancel_monoid_with_zero α] := sorry
+
+namespace DCC_dvd
+
+variables [comm_cancel_monoid_with_zero α] [DCC_dvd α]
+
+open associates nat
+
+local attribute [elab_as_eliminator] well_founded.fix
+
+--lemma well_founded_dvd_not_unit : well_founded (λ a b : associates α, a ≠ 0 ∧ ∃ x, ¬is_unit x ∧ b = a * x) :=
+--by simp only [ideal.span_singleton_lt_span_singleton.symm];
+--   exact inv_image.wf (λ a, ideal.span ({a} : set R)) (well_founded_submodule_gt _ _)
+
+lemma exists_irreducible_factor {a : α} (ha : ¬ is_unit a) (ha0 : a ≠ 0) :
+  ∃ i, irreducible i ∧ i ∣ a :=
+(irreducible_or_factor a ha).elim (λ hai, ⟨a, hai, dvd_refl _⟩)
+  (well_founded.fix
+    DCC_dvd.well_founded_dvd_not_unit
+    (λ a ih ha ha0 ⟨x, y, hx, hy, hxy⟩,
+      have hx0 : x ≠ 0, from λ hx0, ha0 (by rw [← hxy, hx0, zero_mul]),
+      (irreducible_or_factor x hx).elim
+        (λ hxi, ⟨x, hxi, hxy ▸ by simp⟩)
+        (λ hxf, let ⟨i, hi⟩ := ih x ⟨hx0, y, hy, hxy.symm⟩ hx hx0 hxf in
+          ⟨i, hi.1, dvd.trans hi.2 (hxy ▸ by simp)⟩)) a ha ha0)
+
+@[elab_as_eliminator] lemma irreducible_induction_on {P : α → Prop} (a : α)
+  (h0 : P 0) (hu : ∀ u : α, is_unit u → P u)
+  (hi : ∀ a i : α, a ≠ 0 → irreducible i → P a → P (i * a)) :
+  P a :=
+by haveI := classical.dec; exact
+well_founded.fix DCC_dvd.well_founded_dvd_not_unit
+  (λ a ih, if ha0 : a = 0 then ha0.symm ▸ h0
+    else if hau : is_unit a then hu a hau
+    else let ⟨i, hii, ⟨b, hb⟩⟩ := exists_irreducible_factor hau ha0 in
+      have hb0 : b ≠ 0, from λ hb0, by simp * at *,
+      hb.symm ▸ hi _ _ hb0 hii (ih _ ⟨hb0, i,
+        hii.1, by rw [hb, mul_comm]⟩))
+  a
+
+lemma exists_factors (a : α) : a ≠ 0 →
+  ∃f : multiset α, (∀b ∈ f, irreducible b) ∧ associated a f.prod :=
+DCC_dvd.irreducible_induction_on a
+  (λ h, (h rfl).elim)
+  (λ u hu _, ⟨0, by simp [associated_one_iff_is_unit, hu]⟩)
+  (λ a i ha0 hii ih hia0,
+    let ⟨s, hs⟩ := ih ha0 in
+    ⟨i::s, ⟨by clear _let_match; finish,
+      by rw multiset.prod_cons;
+        exact associated_mul_mul (by refl) hs.2⟩⟩)
+
+end DCC_dvd
+
+/-- Unique factorization monoids.
+
+These are defined as `comm_cancel_monoid_with_zero`s with the descending chain condition on
+the divisibility relation, but this is equivalent to more familiar definitions:
+
+Each element (except zero) is uniquely represented as a multiset of irreducible factors.
+Uniqueness is only up to associated elements.
+
+Each element (except zero) is non-uniquely represented as a multiset
+of prime factors.
+
+To define a UFD using the definition in terms of multisets
+of irreducible factors, use the definition `of_unique_irreducible_factorization`
+
+To define a UFD using the definition in terms of multisets
+of prime factors, use the definition `of_exists_prime_factorization`
+
+-/
+class unique_factorization_monoid (α : Type*) [comm_cancel_monoid_with_zero α] extends DCC_dvd α :=
+(irreducible_iff_prime : ∀ {a : α}, irreducible a ↔ prime a )
+
 /-- Unique factorization domains.
 
 In a unique factorization domain each element (except zero) is uniquely
@@ -27,14 +110,14 @@ To define a UFD using the traditional definition in terms of multisets
 of irreducible factors, use the definition `of_unique_irreducible_factorization`
 
 -/
-class unique_factorization_domain (α : Type*) [integral_domain α] :=
+class unique_factorization_domain (α : Type*) [comm_cancel_monoid_with_zero α] :=
 (factors : α → multiset α)
 (factors_prod : ∀{a : α}, a ≠ 0 → (factors a).prod ~ᵤ a)
 (prime_factors : ∀{a : α}, a ≠ 0 → ∀x∈factors a, prime x)
 
 namespace unique_factorization_domain
 
-variables [integral_domain α] [unique_factorization_domain α]
+variables [comm_cancel_monoid_with_zero α] [unique_factorization_domain α]
 
 @[elab_as_eliminator] lemma induction_on_prime {P : α → Prop}
   (a : α) (h₁ : P 0) (h₂ : ∀ x : α, is_unit x → P x)
