@@ -9,6 +9,7 @@ Theory of unique factorization domains.
 -/
 import algebra.gcd_monoid
 import ring_theory.integral_domain
+import ring_theory.noetherian
 
 variables {α : Type*}
 local infix ` ~ᵤ ` : 50 := associated
@@ -18,11 +19,9 @@ satisfies the descending chain condition. -/
 class DCC_dvd (α : Type*) [comm_cancel_monoid_with_zero α] : Prop :=
 (well_founded_dvd_not_unit : well_founded (λ a b : α, a ≠ 0 ∧ ∃ x, ¬is_unit x ∧ b = a * x))
 
-instance is_noetherian_ring.DCC_dvd [integral_domain α] [is_noetherian_ring R] :
+instance is_noetherian_ring.DCC_dvd [integral_domain α] [is_noetherian_ring α] :
   DCC_dvd α :=
 ⟨is_noetherian_ring.well_founded_dvd_not_unit⟩
-
-theorem DCC_dvd_iff_well_founded_associates [comm_cancel_monoid_with_zero α] := sorry
 
 namespace DCC_dvd
 
@@ -30,11 +29,12 @@ variables [comm_cancel_monoid_with_zero α] [DCC_dvd α]
 
 open associates nat
 
-local attribute [elab_as_eliminator] well_founded.fix
+theorem well_founded_associates : well_founded ((<) : associates α → associates α → Prop) :=
+begin
+  sorry
+end
 
---lemma well_founded_dvd_not_unit : well_founded (λ a b : associates α, a ≠ 0 ∧ ∃ x, ¬is_unit x ∧ b = a * x) :=
---by simp only [ideal.span_singleton_lt_span_singleton.symm];
---   exact inv_image.wf (λ a, ideal.span ({a} : set R)) (well_founded_submodule_gt _ _)
+local attribute [elab_as_eliminator] well_founded.fix
 
 lemma exists_irreducible_factor {a : α} (ha : ¬ is_unit a) (ha0 : a ≠ 0) :
   ∃ i, irreducible i ∧ i ∣ a :=
@@ -48,7 +48,7 @@ lemma exists_irreducible_factor {a : α} (ha : ¬ is_unit a) (ha0 : a ≠ 0) :
         (λ hxf, let ⟨i, hi⟩ := ih x ⟨hx0, y, hy, hxy.symm⟩ hx hx0 hxf in
           ⟨i, hi.1, dvd.trans hi.2 (hxy ▸ by simp)⟩)) a ha ha0)
 
-@[elab_as_eliminator] lemma irreducible_induction_on {P : α → Prop} (a : α)
+@[elab_as_eliminator] lemma induction_on_irreducible {P : α → Prop} (a : α)
   (h0 : P 0) (hu : ∀ u : α, is_unit u → P u)
   (hi : ∀ a i : α, a ≠ 0 → irreducible i → P a → P (i * a)) :
   P a :=
@@ -64,7 +64,7 @@ well_founded.fix DCC_dvd.well_founded_dvd_not_unit
 
 lemma exists_factors (a : α) : a ≠ 0 →
   ∃f : multiset α, (∀b ∈ f, irreducible b) ∧ associated a f.prod :=
-DCC_dvd.irreducible_induction_on a
+DCC_dvd.induction_on_irreducible a
   (λ h, (h rfl).elim)
   (λ u hu _, ⟨0, by simp [associated_one_iff_is_unit, hu]⟩)
   (λ a i ha0 hii ih hia0,
@@ -74,6 +74,18 @@ DCC_dvd.irreducible_induction_on a
         exact associated_mul_mul (by refl) hs.2⟩⟩)
 
 end DCC_dvd
+
+theorem DCD_dvd_of_well_founded_associates
+  (h : well_founded ((<) : associates α → associates α → Prop)): DCD_dvd α :=
+begin
+  sorry
+end
+
+theorem DCC_dvd_iff_well_founded_associates [comm_cancel_monoid_with_zero α] :
+  DCC_dvd α ↔ well_founded ((<) : associates α → associates α → Prop) :=
+begin
+  split, { apply DCC_dvd.well_founded_associates, }, sorry,
+end
 
 /-- Unique factorization monoids.
 
@@ -96,48 +108,71 @@ of prime factors, use the definition `of_exists_prime_factorization`
 class unique_factorization_monoid (α : Type*) [comm_cancel_monoid_with_zero α] extends DCC_dvd α :=
 (irreducible_iff_prime : ∀ {a : α}, irreducible a ↔ prime a )
 
-/-- Unique factorization domains.
+namespace unique_factorization_monoid
+variables [comm_cancel_monoid_with_zero α] [unique_factorization_monoid α]
 
-In a unique factorization domain each element (except zero) is uniquely
-represented as a multiset of irreducible factors.
-Uniqueness is only up to associated elements.
-
-This is equivalent to defining a unique factorization domain as a domain in
-which each element (except zero) is non-uniquely represented as a multiset
-of prime factors. This definition is used.
-
-To define a UFD using the traditional definition in terms of multisets
-of irreducible factors, use the definition `of_unique_irreducible_factorization`
-
--/
-class unique_factorization_domain (α : Type*) [comm_cancel_monoid_with_zero α] :=
-(factors : α → multiset α)
-(factors_prod : ∀{a : α}, a ≠ 0 → (factors a).prod ~ᵤ a)
-(prime_factors : ∀{a : α}, a ≠ 0 → ∀x∈factors a, prime x)
-
-namespace unique_factorization_domain
-
-variables [comm_cancel_monoid_with_zero α] [unique_factorization_domain α]
+theorem exists_prime_factors (a : α) : a ≠ 0 →
+  ∃ f : multiset α, (∀b ∈ f, prime b) ∧ a ~ᵤ f.prod :=
+by { simp_rw ← unique_factorization_monoid.irreducible_iff_prime, apply DCC_dvd.exists_factors a, }
 
 @[elab_as_eliminator] lemma induction_on_prime {P : α → Prop}
   (a : α) (h₁ : P 0) (h₂ : ∀ x : α, is_unit x → P x)
   (h₃ : ∀ a p : α, a ≠ 0 → prime p → P a → P (p * a)) : P a :=
+begin
+  simp_rw ← unique_factorization_monoid.irreducible_iff_prime at h₃,
+  exact DCC_dvd.induction_on_irreducible a h₁ h₂ h₃,
+end
+
+lemma unique : ∀{f g : multiset α},
+  (∀x∈f, irreducible x) → (∀x∈g, irreducible x) → f.prod ~ᵤ g.prod →
+  multiset.rel associated f g :=
 by haveI := classical.dec_eq α; exact
-if ha0 : a = 0 then ha0.symm ▸ h₁
-else @multiset.induction_on _
-  (λ s : multiset α, ∀ (a : α), a ≠ 0 → s.prod ~ᵤ a → (∀ p ∈ s, prime p) →  P a)
-  (factors a)
-  (λ _ _ h _, h₂ _ ((is_unit_iff_of_associated h.symm).2 is_unit_one))
-  (λ p s ih a ha0 ⟨u, hu⟩ hsp,
-    have ha : a = (p * u) * s.prod, by simp [hu.symm, mul_comm, mul_assoc],
-    have hs0 : s.prod ≠ 0, from λ _ : s.prod = 0, by simp * at *,
-    ha.symm ▸ h₃ _ _ hs0
-      (prime_of_associated ⟨u, rfl⟩ (hsp p (multiset.mem_cons_self _ _)))
-      (ih _ hs0 (by refl) (λ p hp, hsp p (multiset.mem_cons.2 (or.inr hp)))))
-  _
-  ha0
-  (factors_prod ha0)
-  (prime_factors ha0)
+λ f, multiset.induction_on f
+  (λ g _ hg h,
+    multiset.rel_zero_left.2 $
+      multiset.eq_zero_of_forall_not_mem (λ x hx,
+        have is_unit g.prod, by simpa [associated_one_iff_is_unit] using h.symm,
+        (hg x hx).1 (is_unit_iff_dvd_one.2 (dvd.trans (multiset.dvd_prod hx)
+          (is_unit_iff_dvd_one.1 this)))))
+  (λ p f ih g hf hg hfg,
+    let ⟨b, hbg, hb⟩ := exists_associated_mem_of_dvd_prod
+      (irreducible_iff_prime.1 (hf p (by simp)))
+      (λ q hq, irreducible_iff_prime.1 (hg _ hq)) $
+        (dvd_iff_dvd_of_rel_right hfg).1
+          (show p ∣ (p :: f).prod, by simp) in
+    begin
+      rw ← multiset.cons_erase hbg,
+      exact multiset.rel.cons hb (ih (λ q hq, hf _ (by simp [hq]))
+        (λ q (hq : q ∈ g.erase b), hg q (multiset.mem_of_mem_erase hq))
+        (associated_mul_left_cancel
+          (by rwa [← multiset.prod_cons, ← multiset.prod_cons, multiset.cons_erase hbg]) hb
+        (hf p (by simp)).ne_zero))
+    end)
+
+end unique_factorization_monoid
+
+
+class prime_factorization (α : Type*) [comm_cancel_monoid_with_zero α] :=
+(factors : α → multiset α)
+(factors_prod : ∀{a : α}, a ≠ 0 → (factors a).prod ~ᵤ a)
+(prime_factors : ∀{a : α}, a ≠ 0 → ∀x∈factors a, prime x)
+
+namespace prime_factorization
+variable [comm_cancel_monoid_with_zero α]
+
+theorem nonempty_prime_factorization
+  (pf : ∀ (a : α), a ≠ 0 → ∃ f : multiset α, (∀b ∈ f, prime b) ∧ a ~ᵤ f.prod) :
+  nonempty (prime_factorization α) :=
+begin
+  apply nonempty_of_exists, swap, { intro, exact true, },
+  existsi _, trivial,
+  refine prime_factorization.mk _ _ _,
+  { intro a, by_cases a = 0, {exact 0}, {exact classical.some (pf a h)}, },
+  { intros a ane0, simp [ane0, (classical.some_spec (pf a ane0)).2.symm], },
+  { intros a ane0 p hp, apply (classical.some_spec (pf a ane0)).1 p, convert hp, simp [ane0], }
+end
+
+variables [prime_factorization α]
 
 lemma factors_irreducible {a : α} (ha : irreducible a) :
   ∃ p, a ~ᵤ p ∧ factors a = p :: 0 :=
@@ -197,7 +232,28 @@ by haveI := classical.dec_eq α; exact
         (hf p (by simp)).ne_zero))
     end)
 
-end unique_factorization_domain
+instance prime_factorization.DCC_dvd : DCC_dvd α :=
+{ well_founded_dvd_not_unit := begin
+    sorry
+  end,
+
+}
+
+instance prime_factorization.unique_factorization_monoid : unique_factorization_monoid α :=
+{ irreducible_iff_prime := λ a, irreducible_iff_prime,
+  .. prime_factorization.DCC_dvd }
+
+end prime_factorization
+
+section exists_prime_factors
+
+variables [comm_cancel_monoid_with_zero α]
+
+theorem unique_factorization_monoid_iff_exists_prime_factors :
+  unique_factorization_monoid α ↔ (∀ (a : α), a ≠ 0 → ∃ f : multiset α, (∀b ∈ f, prime b) ∧ a ~ᵤ f.prod) :=
+  sorry
+
+end exists_prime_factors
 
 structure unique_irreducible_factorization (α : Type*) [integral_domain α] :=
 (factors : α → multiset α)
@@ -207,8 +263,8 @@ structure unique_irreducible_factorization (α : Type*) [integral_domain α] :=
   (∀x∈f, irreducible x) → (∀x∈g, irreducible x) → f.prod ~ᵤ g.prod → multiset.rel associated f g)
 
 namespace unique_factorization_domain
-open unique_factorization_domain associated
-variables [integral_domain α] [unique_factorization_domain α]
+open prime_factorization associated
+variables [integral_domain α] [prime_factorization α]
 
 lemma exists_mem_factors_of_dvd {a p : α} (ha0 : a ≠ 0) (hp : irreducible p) : p ∣ a →
   ∃ q ∈ factors a, p ~ᵤ q :=

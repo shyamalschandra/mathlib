@@ -13,6 +13,75 @@ universes u v w
 variables {α : Type*} {β : Type*} {γ : Type*}
   {r : α → α → Prop} {s : β → β → Prop} {t : γ → γ → Prop}
 
+/-- A relation homomorphism with respect to a given pair of relations `r` and `s`
+is a function `f : α → β` such that `r a b → s (f a) (f b)`. -/
+structure rel_hom {α β : Type*} (r : α → α → Prop) (s : β → β → Prop) :=
+(to_fun : α → β)
+(map_rel' : ∀ {a b}, r a b → s (to_fun a) (to_fun b))
+
+infix ` →r `:25 := rel_hom
+
+namespace rel_hom
+
+instance : has_coe_to_fun (r →r s) := ⟨λ _, α → β, λ o, o.to_fun⟩
+
+theorem map_rel (f : r →r s) : ∀ {a b}, r a b → s (f a) (f b) := f.map_rel'
+
+@[simp] theorem coe_fn_mk (f : α → β) (o) :
+  (@rel_hom.mk _ _ r s f o : α → β) = f := rfl
+
+@[simp] theorem coe_fn_to_fun (f : r →r s) : (f.to_fun : α → β) = f := rfl
+
+/-- The map `coe_fn : (r →r s) → (r → s)` is injective. We can't use `function.injective`
+here but mimic its signature by using `⦃e₁ e₂⦄`. -/
+theorem coe_fn_inj : ∀ ⦃e₁ e₂ : r →r s⦄, (e₁ : α → β) = e₂ → e₁ = e₂
+| ⟨f₁, o₁⟩ ⟨f₂, o₂⟩ h := by { congr, exact h }
+
+@[refl] protected def refl (r : α → α → Prop) : r →r r :=
+⟨id, λ a b, id⟩
+
+@[trans] protected def trans (f : r →r s) (g : s →r t) : r →r t :=
+⟨g.1 ∘ f.1, λ a b h, g.2 (f.2 h)⟩
+
+@[simp] theorem refl_apply (x : α) : rel_hom.refl r x = x := rfl
+
+@[simp] theorem trans_apply (f : r →r s) (g : s →r t) (a : α) : (f.trans g) a = g (f a) := rfl
+
+/-- a relation embedding is also a relation embedding between dual relations. -/
+def rsymm (f : r →r s) : swap r →r swap s :=
+⟨f.to_fun, λ a b, f.map_rel⟩
+
+/-- If `f` is injective, then it is a relation embedding from the
+  preimage relation of `s` to `s`. -/
+def preimage (f : α → β) (s : β → β → Prop) : f ⁻¹'o s →r s := ⟨f, λ a b, id⟩
+
+protected theorem is_irrefl : ∀ (f : r →r s) [is_irrefl β s], is_irrefl α r
+| ⟨f, o⟩ ⟨H⟩ := ⟨λ a h, H _ (o h)⟩
+
+protected theorem is_asymm : ∀ (f : r →r s) [is_asymm β s], is_asymm α r
+| ⟨f, o⟩ ⟨H⟩ := ⟨λ a b h₁ h₂, H _ _ (o h₁) (o h₂)⟩
+
+protected theorem acc (f : r →r s) (a : α) : acc s (f a) → acc r a :=
+begin
+  generalize h : f a = b, intro ac,
+  induction ac with _ H IH generalizing a, subst h,
+  exact ⟨_, λ a' h, IH (f a') (f.map_rel h) _ rfl⟩
+end
+
+protected theorem well_founded : ∀ (f : r →r s) (h : well_founded s), well_founded r
+| f ⟨H⟩ := ⟨λ a, f.acc _ (H _)⟩
+
+/-- It suffices to prove `f` is monotone between strict relations
+  to show it is a relation embedding. -/
+def of_monotone [is_trichotomous α r] [is_asymm β s] (f : α → β)
+  (H : ∀ a b, r a b → s (f a) (f b)) : r →r s :=
+⟨f, λ a b, H a b⟩
+
+@[simp] theorem of_monotone_coe [is_trichotomous α r] [is_asymm β s] (f : α → β) (H) :
+  (@of_monotone _ _ r s _ _ f H : α → β) = f := rfl
+
+end rel_hom
+
 /-- An increasing function is injective -/
 lemma injective_of_increasing (r : α → α → Prop) (s : β → β → Prop) [is_trichotomous α r]
   [is_irrefl β s] (f : α → β) (hf : ∀{x y}, r x y → s (f x) (f y)) : injective f :=
@@ -156,7 +225,7 @@ end
 @[simp] theorem of_monotone_coe [is_trichotomous α r] [is_asymm β s] (f : α → β) (H) :
   (@of_monotone _ _ r s _ _ f H : α → β) = f := rfl
 
-/-- Embeddings of partial orders that preserve  -/
+/-- Embeddings of partial orders that preserve `<` also preserve `≤`  -/
 def order_embedding_of_lt_embedding [partial_order α] [partial_order β]
   (f : ((<) : α → α → Prop) ↪r ((<) : β → β → Prop)) :
   α ↪o β :=
