@@ -147,7 +147,7 @@ begin
 end
 
 lemma num_is_root_scale_roots_of_aeval_eq_zero
-  [unique_factorization_domain A] (g : fraction_map A K)
+  [unique_factorization_monoid A] (g : fraction_map A K)
   {p : polynomial A} {x : g.codomain} (hr : aeval x p = 0) :
   is_root (scale_roots p (g.denom x)) (g.num x) :=
 begin
