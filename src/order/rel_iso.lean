@@ -37,9 +37,11 @@ here but mimic its signature by using `⦃e₁ e₂⦄`. -/
 theorem coe_fn_inj : ∀ ⦃e₁ e₂ : r →r s⦄, (e₁ : α → β) = e₂ → e₁ = e₂
 | ⟨f₁, o₁⟩ ⟨f₂, o₂⟩ h := by { congr, exact h }
 
+/-- Identity map is a relation homomorphism. -/
 @[refl] protected def refl (r : α → α → Prop) : r →r r :=
 ⟨id, λ a b, id⟩
 
+/-- Composition of two relation homomorphisms is a relation homomorphism. -/
 @[trans] protected def trans (f : r →r s) (g : s →r t) : r →r t :=
 ⟨g.1 ∘ f.1, λ a b h, g.2 (f.2 h)⟩
 
@@ -73,12 +75,12 @@ protected theorem well_founded : ∀ (f : r →r s) (h : well_founded s), well_f
 
 /-- It suffices to prove `f` is monotone between strict relations
   to show it is a relation embedding. -/
-def of_monotone [is_trichotomous α r] [is_asymm β s] (f : α → β)
+def of_monotone (f : α → β)
   (H : ∀ a b, r a b → s (f a) (f b)) : r →r s :=
 ⟨f, λ a b, H a b⟩
 
-@[simp] theorem of_monotone_coe [is_trichotomous α r] [is_asymm β s] (f : α → β) (H) :
-  (@of_monotone _ _ r s _ _ f H : α → β) = f := rfl
+@[simp] theorem of_monotone_coe (f : α → β) (H : ∀ a b, r a b → s (f a) (f b)) :
+  (of_monotone f H : α → β) = f := rfl
 
 end rel_hom
 
@@ -134,9 +136,11 @@ here but mimic its signature by using `⦃e₁ e₂⦄`. -/
 theorem coe_fn_inj : ∀ ⦃e₁ e₂ : r ↪r s⦄, (e₁ : α → β) = e₂ → e₁ = e₂
 | ⟨⟨f₁, h₁⟩, o₁⟩ ⟨⟨f₂, h₂⟩, o₂⟩ h := by { congr, exact h }
 
+/-- Identity map is a relation embedding. -/
 @[refl] protected def refl (r : α → α → Prop) : r ↪r r :=
 ⟨embedding.refl _, λ a b, iff.rfl⟩
 
+/-- Composition of two relation embeddings is a relation embedding. -/
 @[trans] protected def trans (f : r ↪r s) (g : s ↪r t) : r ↪r t :=
 ⟨f.1.trans g.1, λ a b, by rw [f.2, g.2]; simp⟩
 
