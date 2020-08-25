@@ -20,9 +20,7 @@ Theorems about PID's are in the `principal_ideal_ring` namespace.
 - `is_principal_ideal_ring`: a predicate on commutative rings, saying that every
   ideal is principal.
 - `generator`: a generator of a principal ideal (or more generally submodule)
-- `to_unique_factorization_domain`: a noncomputable definition, putting a UFD structure on a PID.
-  Note that the definition of a UFD is currently not a predicate, as it contains data
-  of factorizations of non-zero elements.
+- `to_unique_factorization_monoid`: a UFD structure on a PID.
 
 # Main results
 
@@ -175,15 +173,9 @@ begin
     (is_noetherian_ring.exists_factors a h)
 end
 
-/-- The unique factorization domain structure given by the principal ideal domain.
-
-This is not added as type class instance, since the `factors` might be computed in a different way.
-E.g. factors could return normalized values.
--/
-noncomputable def to_unique_factorization_domain : unique_factorization_domain R :=
-{ factors := factors,
-  factors_prod := assume a ha, associated.symm (factors_spec a ha).2,
-  prime_factors := assume a ha, by simpa [irreducible_iff_prime] using (factors_spec a ha).1 }
+/-- The unique factorization domain structure given by the principal ideal domain. -/
+instance to_unique_factorization_monoid : unique_factorization_monoid R :=
+{ irreducible_iff_prime := λ _, principal_ideal_ring.irreducible_iff_prime }
 
 end
 

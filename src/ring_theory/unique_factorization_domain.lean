@@ -103,17 +103,19 @@ DCC_dvd.induction_on_irreducible a
 
 end DCC_dvd
 
-theorem DCD_dvd_of_well_founded_associates [comm_cancel_monoid_with_zero α]
+theorem DCC_dvd_of_well_founded_associates [comm_cancel_monoid_with_zero α]
   (h : well_founded ((<) : associates α → associates α → Prop)): DCC_dvd α :=
-begin
-  sorry
-end
+⟨by { refine rel_hom.well_founded _ h,
+  exact { to_fun := associates.mk,
+    map_rel' := λ a b ⟨ane0, ⟨c, ⟨hc, bac⟩⟩⟩,
+      by { rw bac, apply lt_of_le_of_ne (associates.mk_le_mk_of_dvd (dvd.intro c rfl)),
+        intro con, rw associates.mk_eq_mk_iff_associated at con, apply hc,
+        rw ← associated_one_iff_is_unit, symmetry, apply associated_mul_left_cancel,
+        convert con, apply mul_one, refl, exact ane0, }}}⟩
 
 theorem DCC_dvd_iff_well_founded_associates [comm_cancel_monoid_with_zero α] :
   DCC_dvd α ↔ well_founded ((<) : associates α → associates α → Prop) :=
-begin
-  split, { apply DCC_dvd.well_founded_associates, }, sorry,
-end
+⟨by apply DCC_dvd.well_founded_associates, DCC_dvd_of_well_founded_associates⟩
 
 /-- Unique factorization monoids.
 
@@ -322,284 +324,75 @@ theorem irreducible_iff_prime_of_exists_unique_irreducible_factors [comm_cancel_
               (multiset.dvd_prod hqb))
         end⟩, irreducible_of_prime⟩
 
-variables [comm_cancel_monoid_with_zero α] [nontrivial α] [normalization_monoid α]
+namespace unique_factorization_monoid
+variables [comm_cancel_monoid_with_zero α] [decidable_eq α] [nontrivial α] [normalization_monoid α]
   [unique_factorization_monoid α]
 
 /-- Noncomputably determines the multiset of prime factors -/
-noncomputable def factors [decidable_eq α] (a : α) : multiset α := if h : a = 0 then 0 else
-classical.some (unique_factorization_monoid.exists_prime_factors a h)
+noncomputable def factors (a : α) : multiset α := if h : a = 0 then 0 else
+multiset.map normalize $ classical.some (unique_factorization_monoid.exists_prime_factors a h)
 
-namespace associates
-open unique_factorization_monoid associated
-variables [comm_cancel_monoid_with_zero α]
-
-/-- `factor_set α` representation elements of unique factorization domain as multisets.
-
-`multiset α` produced by `factors` are only unique up to associated elements, while the multisets in
-`factor_set α` are unqiue by equality and restricted to irreducible elements. This gives us a
-representation of each element as a unique multisets (or the added ⊤ for 0), which has a complete
-lattice struture. Infimum is the greatest common divisor and supremum is the least common multiple.
--/
-@[reducible] def {u} factor_set (α : Type u) [comm_cancel_monoid_with_zero α] :
-  Type u :=
-with_top (multiset { a : associates α // irreducible a })
-
-local attribute [instance] associated.setoid
-
-theorem factor_set.coe_add {a b : multiset { a : associates α // irreducible a }} :
-  (↑(a + b) : factor_set α) = a + b :=
-by norm_cast
-
-lemma factor_set.sup_add_inf_eq_add [decidable_eq (associates α)] :
-  ∀(a b : factor_set α), a ⊔ b + a ⊓ b = a + b
-| none     b        := show ⊤ ⊔ b + ⊤ ⊓ b = ⊤ + b, by simp
-| a        none     := show a ⊔ ⊤ + a ⊓ ⊤ = a + ⊤, by simp
-| (some a) (some b) := show (a : factor_set α) ⊔ b + a ⊓ b = a + b, from
-  begin
-    rw [← with_top.coe_sup, ← with_top.coe_inf, ← with_top.coe_add, ← with_top.coe_add,
-      with_top.coe_eq_coe],
-    exact multiset.union_add_inter _ _
-  end
-
-def factor_set.prod : factor_set α → associates α
-| none     := 0
-| (some s) := (s.map coe).prod
-
-@[simp] theorem prod_top : (⊤ : factor_set α).prod = 0 := rfl
-
-@[simp] theorem prod_coe {s : multiset { a : associates α // irreducible a }} :
-  (s : factor_set α).prod = (s.map coe).prod :=
-rfl
-
-@[simp] theorem prod_add : ∀(a b : factor_set α), (a + b).prod = a.prod * b.prod
-| none b    := show (⊤ + b).prod = (⊤:factor_set α).prod * b.prod, by simp
-| a    none := show (a + ⊤).prod = a.prod * (⊤:factor_set α).prod, by simp
-| (some a) (some b) :=
-  show (↑a + ↑b:factor_set α).prod = (↑a:factor_set α).prod * (↑b:factor_set α).prod,
-    by rw [← factor_set.coe_add, prod_coe, prod_coe, prod_coe, multiset.map_add, multiset.prod_add]
-
-theorem prod_mono : ∀{a b : factor_set α}, a ≤ b → a.prod ≤ b.prod
-| none b h := have b = ⊤, from top_unique h, by rw [this, prod_top]; exact le_refl _
-| a none h := show a.prod ≤ (⊤ : factor_set α).prod, by simp; exact le_top
-| (some a) (some b) h := prod_le_prod $ multiset.map_le_map $ with_top.coe_le_coe.1 $ h
-
-variable [unique_factorization_monoid α]
-
-theorem unique' {p q : multiset (associates α)} :
-  (∀a∈p, irreducible a) → (∀a∈q, irreducible a) → p.prod = q.prod → p = q :=
+theorem factors_prod {a : α} (ane0 : a ≠ 0) : associated (factors a).prod a :=
 begin
-  apply multiset.induction_on_multiset_quot p,
-  apply multiset.induction_on_multiset_quot q,
-  assume s t hs ht eq,
-  refine multiset.map_mk_eq_map_mk_of_rel (unique_factorization_monoid.unique _ _ _),
-  { exact assume a ha, ((irreducible_mk_iff _).1 $ hs _ $ multiset.mem_map_of_mem _ ha) },
-  { exact assume a ha, ((irreducible_mk_iff _).1 $ ht _ $ multiset.mem_map_of_mem _ ha) },
-  simpa [quot_mk_eq_mk, prod_mk, mk_eq_mk_iff_associated] using eq
+  rw [factors, dif_neg ane0],
+  transitivity, swap,
+  { exact (classical.some_spec (unique_factorization_monoid.exists_prime_factors a ane0)).2.symm },
+  { rw [← associates.mk_eq_mk_iff_associated, ← associates.prod_mk, ← associates.prod_mk,
+    multiset.map_map],
+    refine congr rfl (congr (congr rfl _) rfl), ext,
+    rw [function.comp_apply, associates.mk_eq_mk_iff_associated], apply normalize_associated },
 end
 
-private theorem forall_map_mk_factors_irreducible (x : α) (hx : x ≠ 0) :
-  ∀(a : associates α), a ∈ multiset.map associates.mk (factors x) → irreducible a :=
+theorem prime_factors {a : α} : ∀ (x : α), x ∈ factors a → prime x :=
 begin
-  assume a ha,
-  rcases multiset.mem_map.1 ha with ⟨c, hc, rfl⟩,
-  exact (irreducible_mk_iff c).2 (irreducible_factors hx _ hc)
+  rw [factors],
+  by_cases a = 0, {simp [h]}, rw dif_neg h,
+  intros x hx, rcases multiset.mem_map.1 hx with ⟨y, ⟨hy, rfl⟩⟩,
+  rw prime_iff_of_associated (normalize_associated),
+  exact (classical.some_spec (unique_factorization_monoid.exists_prime_factors a h)).1 y hy,
 end
 
-theorem prod_le_prod_iff_le {p q : multiset (associates α)}
-  (hp : ∀a∈p, irreducible a) (hq : ∀a∈q, irreducible a) :
-  p.prod ≤ q.prod ↔ p ≤ q :=
-iff.intro
-  begin
-    rintros ⟨⟨c⟩, eqc⟩,
-    have : c ≠ 0, from (mt mk_eq_zero.2 $
-      assume (hc : quot.mk setoid.r c = 0),
-      have (0 : associates α) ∈ q, from prod_eq_zero_iff.1 $ eqc.symm ▸ hc.symm ▸ mul_zero _,
-      not_irreducible_zero ((irreducible_mk_iff 0).1 $ hq _ this)),
-    have : associates.mk (factors c).prod = quot.mk setoid.r c,
-      from mk_eq_mk_iff_associated.2 (factors_prod this),
+theorem irreducible_factors {a : α} : ∀ (x : α), x ∈ factors a → irreducible x :=
+λ x h, irreducible_of_prime (prime_factors x h)
 
-    refine le_iff_exists_add.2 ⟨(factors c).map associates.mk, unique' hq _ _⟩,
-    { assume x hx,
-      rcases multiset.mem_add.1 hx with h | h,
-      exact hp x h,
-      exact forall_map_mk_factors_irreducible c ‹c ≠ 0› _ h },
-    { simp [multiset.prod_add, prod_mk, *] at * }
-  end
-  prod_le_prod
-
-def factors' (a : α) (ha : a ≠ 0) : multiset { a : associates α // irreducible a } :=
-(factors a).pmap (λa ha, ⟨associates.mk a, (irreducible_mk_iff _).2 ha⟩)
-  (irreducible_factors $ ha)
-
-@[simp] theorem map_subtype_coe_factors' {a : α} (ha : a ≠ 0) :
-  (factors' a ha).map coe = (factors a).map associates.mk :=
-by simp [factors', multiset.map_pmap, multiset.pmap_eq_map]
-
-theorem factors'_cong {a b : α} (ha : a ≠ 0) (hb : b ≠ 0) (h : a ~ᵤ b) :
-  factors' a ha = factors' b hb :=
-have multiset.rel associated (factors a) (factors b), from
-  unique (irreducible_factors ha) (irreducible_factors hb)
-    ((factors_prod ha).trans $ h.trans $ (factors_prod hb).symm),
-by simpa [(multiset.map_eq_map subtype.coe_injective).symm, rel_associated_iff_map_eq_map.symm]
-
-variable [dec : decidable_eq (associates α)]
-include dec
-
-def factors (a : associates α) : factor_set α :=
+theorem normalize_factors {a : α} : ∀ (x : α), x ∈ factors a → normalize x = x :=
 begin
-  refine (if h : a = 0 then ⊤ else
-    quotient.hrec_on a (λx h, some $ factors' x (mt mk_eq_zero.2 h)) _ h),
-
-  assume a b hab,
-  apply function.hfunext,
-  { have : a ~ᵤ 0 ↔ b ~ᵤ 0, from
-      iff.intro (assume ha0, hab.symm.trans ha0) (assume hb0, hab.trans hb0),
-    simp only [associated_zero_iff_eq_zero] at this,
-    simp only [quotient_mk_eq_mk, this, mk_eq_zero] },
-  exact (assume ha hb eq, heq_of_eq $ congr_arg some $ factors'_cong _ _ hab)
+  rw [factors],
+  by_cases a = 0, {simp [h]}, rw dif_neg h,
+  intros x hx, rcases multiset.mem_map.1 hx with ⟨y, ⟨hy, rfl⟩⟩,
+  apply normalize_idem,
 end
 
-@[simp] theorem factors_0 : (0 : associates α).factors = ⊤ :=
-dif_pos rfl
-
-@[simp] theorem factors_mk (a : α) (h : a ≠ 0) : (associates.mk a).factors = factors' a h :=
-dif_neg (mt mk_eq_zero.1 h)
-
-theorem prod_factors : ∀(s : factor_set α), s.prod.factors = s
-| none     := by simp [factor_set.prod]; refl
-| (some s) :=
-  begin
-    unfold factor_set.prod,
-    generalize eq_a : (s.map coe).prod = a,
-    rcases a with ⟨a⟩,
-    rw quot_mk_eq_mk at *,
-
-    have : (s.map (coe : _ → associates α)).prod ≠ 0, from assume ha,
-      let ⟨⟨a, ha⟩, h, eq⟩ := multiset.mem_map.1 (prod_eq_zero_iff.1 ha) in
-      have irreducible (0 : associates α), from eq ▸ ha,
-      not_irreducible_zero ((irreducible_mk_iff _).1 this),
-    have ha : a ≠ 0, by simp [*] at *,
-    suffices : (unique_factorization_domain.factors a).map associates.mk = s.map coe,
-    { rw [factors_mk a ha],
-      apply congr_arg some _,
-      simpa [(multiset.map_eq_map subtype.coe_injective).symm] },
-
-    refine unique'
-      (forall_map_mk_factors_irreducible _ ha)
-      (assume a ha, let ⟨⟨x, hx⟩, ha, eq⟩ := multiset.mem_map.1 ha in eq ▸ hx)
-      _,
-    rw [prod_mk, eq_a, mk_eq_mk_iff_associated],
-    exact factors_prod ha
-  end
-
-theorem factors_prod (a : associates α) : a.factors.prod = a :=
-quotient.induction_on a $ assume a, decidable.by_cases
-  (assume : associates.mk a = 0, by simp [quotient_mk_eq_mk, this])
-  (assume : associates.mk a ≠ 0,
-    have a ≠ 0, by simp * at *,
-    by simp [this, quotient_mk_eq_mk, prod_mk, mk_eq_mk_iff_associated.2 (factors_prod this)])
-
-theorem eq_of_factors_eq_factors {a b : associates α} (h : a.factors = b.factors) : a = b :=
-have a.factors.prod = b.factors.prod, by rw h,
-by rwa [factors_prod, factors_prod] at this
-
-omit dec
-
-theorem eq_of_prod_eq_prod {a b : factor_set α} (h : a.prod = b.prod) : a = b :=
+lemma factors_irreducible {a : α} (ha : irreducible a) :
+  factors a = normalize a :: 0 :=
 begin
-  classical,
-  have : a.prod.factors = b.prod.factors, by rw h,
-  rwa [prod_factors, prod_factors] at this
+  cases prime_factors_irreducible ha ⟨prime_factors,(factors_prod ha.ne_zero).symm⟩ with p hp,
+  convert hp.2, rw [← normalize_factors p, normalize_eq_normalize_iff, dvd_dvd_iff_associated],
+  {apply hp.1}, rw hp.2, simp,
 end
 
-include dec
+lemma exists_mem_factors_of_dvd {a p : α} (ha0 : a ≠ 0) (hp : irreducible p) : p ∣ a →
+  ∃ q ∈ factors a, p ~ᵤ q :=
+λ ⟨b, hb⟩,
+have hb0 : b ≠ 0, from λ hb0, by simp * at *,
+have multiset.rel associated (p :: factors b) (factors a),
+  from unique
+    (λ x hx, (multiset.mem_cons.1 hx).elim (λ h, h.symm ▸ hp)
+      (irreducible_factors _))
+    (irreducible_factors)
+    (associated.symm $ calc multiset.prod (factors a) ~ᵤ a : factors_prod ha0
+      ... = p * b : hb
+      ... ~ᵤ multiset.prod (p :: factors b) :
+        by rw multiset.prod_cons; exact associated_mul_mul
+          (associated.refl _)
+          (associated.symm (factors_prod hb0))),
+multiset.exists_mem_of_rel_of_mem this (by simp)
 
+end unique_factorization_monoid
 
-@[simp] theorem factors_mul (a b : associates α) : (a * b).factors = a.factors + b.factors :=
-eq_of_prod_eq_prod $ eq_of_factors_eq_factors $
-  by rw [prod_add, factors_prod, factors_prod, factors_prod]
+namespace unique_factorization_monoid
 
-theorem factors_mono : ∀{a b : associates α}, a ≤ b → a.factors ≤ b.factors
-| s t ⟨d, rfl⟩ := by rw [factors_mul] ; exact le_add_of_nonneg_right bot_le
-
-theorem factors_le {a b : associates α} : a.factors ≤ b.factors ↔ a ≤ b :=
-iff.intro
-  (assume h, have a.factors.prod ≤ b.factors.prod, from prod_mono h,
-    by rwa [factors_prod, factors_prod] at this)
-  factors_mono
-
-omit dec
-
-theorem prod_le {a b : factor_set α} : a.prod ≤ b.prod ↔ a ≤ b :=
-begin
-  classical,
-  exact iff.intro
-  (assume h, have a.prod.factors ≤ b.prod.factors, from factors_mono h,
-    by rwa [prod_factors, prod_factors] at this)
-  prod_mono
-end
-
-include dec
-
-instance : has_sup (associates α) := ⟨λa b, (a.factors ⊔ b.factors).prod⟩
-instance : has_inf (associates α) := ⟨λa b, (a.factors ⊓ b.factors).prod⟩
-
-instance : bounded_lattice (associates α) :=
-{ sup          := (⊔),
-  inf          := (⊓),
-  sup_le       :=
-    assume a b c hac hbc, factors_prod c ▸ prod_mono (sup_le (factors_mono hac) (factors_mono hbc)),
-  le_sup_left  := assume a b,
-    le_trans (le_of_eq (factors_prod a).symm) $ prod_mono $ le_sup_left,
-  le_sup_right := assume a b,
-    le_trans (le_of_eq (factors_prod b).symm) $ prod_mono $ le_sup_right,
-  le_inf :=
-    assume a b c hac hbc, factors_prod a ▸ prod_mono (le_inf (factors_mono hac) (factors_mono hbc)),
-  inf_le_left  := assume a b,
-    le_trans (prod_mono inf_le_left) (le_of_eq (factors_prod a)),
-  inf_le_right := assume a b,
-    le_trans (prod_mono inf_le_right) (le_of_eq (factors_prod b)),
-  .. associates.partial_order,
-  .. associates.order_top,
-  .. associates.order_bot }
-
-lemma sup_mul_inf (a b : associates α) : (a ⊔ b) * (a ⊓ b) = a * b :=
-show (a.factors ⊔ b.factors).prod * (a.factors ⊓ b.factors).prod = a * b,
-begin
-  refine eq_of_factors_eq_factors _,
-  rw [← prod_add, prod_factors, factors_mul, factor_set.sup_add_inf_eq_add]
-end
-
-end associates
-
-section
-open associates unique_factorization_domain
-
-/-- `to_gcd_monoid` constructs a GCD monoid out of a normalization on a
-  unique factorization domain. -/
-def unique_factorization_domain.to_gcd_monoid
-  (α : Type*) [integral_domain α] [unique_factorization_domain α] [normalization_monoid α]
-  [decidable_eq (associates α)] : gcd_monoid α :=
-{ gcd := λa b, (associates.mk a ⊓ associates.mk b).out,
-  lcm := λa b, (associates.mk a ⊔ associates.mk b).out,
-  gcd_dvd_left := assume a b, (out_dvd_iff a (associates.mk a ⊓ associates.mk b)).2 $ inf_le_left,
-  gcd_dvd_right := assume a b, (out_dvd_iff b (associates.mk a ⊓ associates.mk b)).2 $ inf_le_right,
-  dvd_gcd := assume a b c hac hab, show a ∣ (associates.mk c ⊓ associates.mk b).out,
-    by rw [dvd_out_iff, le_inf_iff, mk_le_mk_iff_dvd_iff, mk_le_mk_iff_dvd_iff]; exact ⟨hac, hab⟩,
-  lcm_zero_left := assume a, show (⊤ ⊔ associates.mk a).out = 0, by simp,
-  lcm_zero_right := assume a, show (associates.mk a ⊔ ⊤).out = 0, by simp,
-  gcd_mul_lcm := assume a b,
-    show (associates.mk a ⊓ associates.mk b).out * (associates.mk a ⊔ associates.mk b).out =
-      normalize (a * b),
-    by rw [← out_mk, ← out_mul, mul_comm, sup_mul_inf]; refl,
-  normalize_gcd := assume a b, by convert normalize_out _,
-  .. ‹normalization_monoid α› }
-
-end
-
-namespace unique_factorization_domain
-
-variables {R : Type*} [integral_domain R] [unique_factorization_domain R]
+variables {R : Type*} [comm_cancel_monoid_with_zero R] [unique_factorization_monoid R]
 
 lemma no_factors_of_no_prime_factors {a b : R} (ha : a ≠ 0)
   (h : (∀ {d}, d ∣ a → d ∣ b → ¬ prime d)) : ∀ {d}, d ∣ a → d ∣ b → is_unit d :=
@@ -671,4 +464,4 @@ lemma exists_reduced_factors' (a b : R) (hb : b ≠ 0) :
 let ⟨b', a', c', no_factor, hb, ha⟩ := exists_reduced_factors b hb a
 in ⟨a', b', c', λ _ hpb hpa, no_factor hpa hpb, ha, hb⟩
 
-end unique_factorization_domain
+end unique_factorization_monoid
