@@ -295,7 +295,7 @@ theorem unique_factorization_monoid_iff_exists_prime_factors [comm_cancel_monoid
 
 theorem irreducible_iff_prime_of_exists_unique_irreducible_factors [comm_cancel_monoid_with_zero α]
   (eif : ∀ (a : α), a ≠ 0 → ∃ f : multiset α, (∀b ∈ f, irreducible b) ∧ a ~ᵤ f.prod)
-  (uif : ∀{f g : multiset α},
+  (uif : ∀ (f g : multiset α),
   (∀x∈f, irreducible x) → (∀x∈g, irreducible x) → f.prod ~ᵤ g.prod → multiset.rel associated f g) :
   ∀ (p : α), irreducible p ↔ prime p :=
 λ p, ⟨by letI := classical.dec_eq α; exact λ hpi,
@@ -334,6 +334,17 @@ theorem irreducible_iff_prime_of_exists_unique_irreducible_factors [comm_cancel_
             (dvd_iff_dvd_of_rel_right hfb.2.symm).1
               (multiset.dvd_prod hqb))
         end⟩, irreducible_of_prime⟩
+
+theorem unique_factorization_monoid.of_exists_unique_irreducible_factors
+  [comm_cancel_monoid_with_zero α]
+  (eif : ∀ (a : α), a ≠ 0 → ∃ f : multiset α, (∀b ∈ f, irreducible b) ∧ a ~ᵤ f.prod)
+  (uif : ∀ (f g : multiset α),
+  (∀x∈f, irreducible x) → (∀x∈g, irreducible x) → f.prod ~ᵤ g.prod → multiset.rel associated f g) :
+  unique_factorization_monoid α :=
+unique_factorization_monoid_of_exists_prime_factors (by {
+  convert eif,
+  simp_rw irreducible_iff_prime_of_exists_unique_irreducible_factors eif uif,
+})
 
 namespace unique_factorization_monoid
 variables [comm_cancel_monoid_with_zero α] [decidable_eq α] [nontrivial α] [normalization_monoid α]

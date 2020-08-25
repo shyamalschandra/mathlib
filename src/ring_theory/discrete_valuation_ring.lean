@@ -172,6 +172,38 @@ begin
       exact (hϖ.not_unit (is_unit_of_mul_is_unit_left H0)).elim } }
 end
 
+/-- Implementation detail: an integral domain in which there is a unit `p`
+such that every nonzero element is associated to a power of `p` is a unique factorization domain.
+See `discrete_valuation_ring.of_has_unit_mul_pow_irreducible_factorization`. -/
+theorem ufd : unique_factorization_monoid R :=
+let p := classical.some hR in
+let spec := classical.some_spec hR in
+unique_factorization_monoid_of_exists_prime_factors $ λ x hx,
+begin
+  use multiset.repeat p (classical.some (spec.2 hx)),
+  split,
+  {
+    intros q hq,
+    have hpq := multiset.eq_of_mem_repeat hq,
+    rw hpq,
+    refine ⟨spec.1.ne_zero, spec.1.not_unit, _⟩,
+    intros a b h,
+    by_cases ha : a = 0,
+    { rw ha, simp only [true_or, dvd_zero], },
+    by_cases hb : b = 0,
+    { rw hb, simp only [or_true, dvd_zero], },
+    obtain ⟨m, u, rfl⟩ := spec.2 ha,
+    rw [mul_assoc, mul_left_comm, is_unit.dvd_mul_left _ _ _ (is_unit_unit _)] at h,
+    rw is_unit.dvd_mul_right (is_unit_unit _),
+    by_cases hm : m = 0,
+    { simp only [hm, one_mul, pow_zero] at h ⊢, right, exact h },
+    left,
+    obtain ⟨m, rfl⟩ := nat.exists_eq_succ_of_ne_zero hm,
+    apply dvd_mul_of_dvd_left (dvd_refl _) _,
+  },
+  { rw [multiset.prod_repeat], exact (classical.some_spec (spec.2 hx)).symm, }
+end
+
 omit hR
 
 lemma of_ufd_of_unique_irreducible [unique_factorization_monoid R]
@@ -267,6 +299,7 @@ lemma of_has_unit_mul_pow_irreducible_factorization {R : Type u} [integral_domai
   (hR : has_unit_mul_pow_irreducible_factorization R) :
   discrete_valuation_ring R :=
 begin
+  letI : unique_factorization_monoid R := hR.ufd,
   apply of_ufd_of_unique_irreducible _ hR.unique_irreducible,
   unfreezingI { obtain ⟨p, hp, H⟩ := hR, exact ⟨p, hp⟩, },
 end
