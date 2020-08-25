@@ -27,11 +27,6 @@ end replace
 
 
 namespace function
-/-- Evaluation a function to an argument. Useful if you want to talk about the partially applied
-  `function.eval i : (Π i, α i) → α i`. -/
-@[reducible] def eval {ι} {α : ι → Type*} (i : ι) (f : Π i, α i) : α i := f i
-
-@[simp] lemma eval_apply {ι} {α : ι → Type*} (i : ι) (f : Π i, α i) : eval i f = f i := rfl
 
 example {ι : Type*} {α : ι → Type*} (i : ι) (g : (Π i, α i) → α i) (s : set (Π i, α i)) :
   eval i '' s = g '' s :=
@@ -122,82 +117,6 @@ end
 
 end
 
-section
-variables {ι : Type*} {α : ι → Type*} {s : set ι} {t : Π i, set (α i)}
-@[simp] lemma mem_pi {f : Π i, α i} : f ∈ s.pi t ↔ ∀ i ∈ s, f i ∈ t i :=
-by refl
-
-@[simp] lemma mem_univ_pi {f : Π i, α i} : f ∈ pi univ t ↔ ∀ i, f i ∈ t i :=
-by simp
-
-lemma pi_eq_empty {i : ι} (hs : i ∈ s) (ht : t i = ∅) : s.pi t = ∅ :=
-by { ext f, simp only [mem_empty_eq, not_forall, iff_false, mem_pi, not_imp],
-     exact ⟨i, hs, by simp [ht]⟩ }
-
-lemma univ_pi_eq_empty {i : ι} (ht : t i = ∅) : pi univ t = ∅ :=
-pi_eq_empty (mem_univ i) ht
-
-lemma pi_nonempty_iff : (s.pi t).nonempty ↔ ∀ i, ∃ x, i ∈ s → x ∈ t i :=
-by simp [classical.skolem, set.nonempty]
-
-lemma univ_pi_nonempty_iff : (pi univ t).nonempty ↔ ∀ i, (t i).nonempty :=
-by simp [classical.skolem, set.nonempty]
-
-lemma pi_eq_empty_iff : s.pi t = ∅ ↔ ∃ i, (α i → false) ∨ (i ∈ s ∧ t i = ∅) :=
-begin
-  rw [← not_nonempty_iff_eq_empty, pi_nonempty_iff], push_neg, apply exists_congr, intro i,
-  split,
-  { intro h, by_cases hα : nonempty (α i),
-    { cases hα with x, refine or.inr ⟨(h x).1, by simp [eq_empty_iff_forall_not_mem, h]⟩ },
-    { exact or.inl (λ x, hα ⟨x⟩) }},
-  { rintro (h|h) x, exfalso, exact h x, simp [h] }
-end
-
-lemma univ_pi_eq_empty_iff : pi univ t = ∅ ↔ ∃ i, t i = ∅ :=
-by simp [← not_nonempty_iff_eq_empty, univ_pi_nonempty_iff]
-
-lemma eval_image_pi {i : ι} (hs : i ∈ s) (ht : (s.pi t).nonempty) : eval i '' s.pi t = t i :=
-begin
-  ext x, rcases ht with ⟨f, hf⟩, split,
-  { rintro ⟨g, hg, rfl⟩, exact hg i hs },
-  { intro hg, refine ⟨function.update f i x, _, by simp⟩,
-    intros j hj, by_cases hji : j = i,
-    { subst hji, simp [hg] },
-    { rw [mem_pi] at hf, simp [hji, hf, hj] }},
-end
-
-@[simp] lemma eval_image_univ_pi {i : ι} (ht : (pi univ t).nonempty) :
-  (λ f : Π i, α i, f i) '' pi univ t = t i :=
-eval_image_pi (mem_univ i) ht
-
-lemma update_preimage_pi {i : ι} {f : Π i, α i} (hi : i ∈ s)
-  (hf : ∀ j ∈ s, j ≠ i → f j ∈ t j) : (update f i) ⁻¹' s.pi t = t i :=
-begin
-  ext x, split,
-  { intro h, convert h i hi, simp },
-  { intros hx j hj, by_cases h : j = i,
-    { cases h, simpa },
-    { rw [update_noteq h], exact hf j hj h }}
-end
-
-lemma update_preimage_univ_pi {i : ι} {f : Π i, α i} (hf : ∀ j ≠ i, f j ∈ t j) :
-  (update f i) ⁻¹' pi univ t = t i :=
-update_preimage_pi (mem_univ i) (λ j _, hf j)
-
-lemma subset_pi_eval_image (s : set ι) (u : set (Π i, α i)) : u ⊆ pi s (λ i, eval i '' u) :=
-λ f hf i hi, ⟨f, hf, rfl⟩
-
-end
-
-section
-variables {α β : Type*}
-lemma image_inter_preimage {f : α → β} {s : set α} {t : set β} : f '' (s ∩ f ⁻¹' t) = f '' s ∩ t :=
-set.push_pull f s t
-
-lemma image_compl_preimage {f : α → β} {s : set α} {t : set β} : f '' (s \ f ⁻¹' t) = f '' s \ t :=
-by simp_rw [diff_eq, ← preimage_compl, image_inter_preimage]
-
-end
 end set
 open set
 
@@ -380,10 +299,14 @@ begin
   apply is_measurable.Inter, intro i, exact h i is_measurable_Iic
 end
 
-#check ∀ {ι ι₂ : Sort*} {α : Type*} [_inst_2 : has_Sup α] {f : ι → α} {g : ι₂ → α}
-  (h : ι → ι₂), surjective h → (∀ (x : ι), g (h x) = f x) → by exactI (⨆ (x : ι), f x) = ⨆ (y : ι₂), g y
+lemma measurable.sum {ι α β} [measurable_space α] [measurable_space β] [add_comm_monoid β]
+  [topological_space β] [has_continuous_add β] [borel_space β] [second_countable_topology β]
+  (f : ι → α → β) (h : ∀ i, measurable (f i)) (s : finset ι) : measurable (∑ i in s, f i) :=
+begin
+  refine s.induction_on (by { simp, exact @measurable_zero β _ _ _ _ }) _,
+  intros i t hi hf, simp [finset.sum_insert, hi], refine (h i).add hf
+end
 
-#check @supr_congr
 /-- todo: `ennreal` can probably be generalized to a
 [measurable_space β] [topological_space β] [add_comm_monoid β] [has_continuous_add β]
   [borel_space β] -/
@@ -392,15 +315,7 @@ lemma measurable.ennreal_tsum {ι α} [encodable ι] [measurable_space α]
 begin
   convert measurable.supr (λ s x, ∑ (a : ι) in s, f a x) _,
   { ext1 x, simp [ennreal.tsum_apply, ennreal.tsum_eq_supr_sum, _root_.supr_apply] },
-  intros s t ht,
-end
-
-lemma measurable.tsum {ι α β} [measurable_space α]
-  [measurable_space β] [topological_space β] [add_comm_monoid β] [has_continuous_add β]
-  [borel_space β]
-  {f : ι → α → β} (h : ∀ i, measurable (f i)) : measurable (∑' i, f i) :=
-begin
-  intros s hs,
+  intros s, convert measurable.sum f h s, ext1 x, simp
 end
 
 section complete_lattice
@@ -460,7 +375,7 @@ theorem le_bounded_by' {μ : outer_measure α} :
 by { rw [le_bounded_by, forall_congr], intro s, cases s.eq_empty_or_nonempty with h h; simp [h] }
 
 lemma bounded_by_caratheodory {m : set α → ennreal} {s : set α}
-  (hs : ∀t, m (t ∩ s) + m (t \ s) ≤ m t) : (bounded_by m).caratheodory.is_measurable' s :=
+  (hs : ∀t, m (t ∩ s) + m (t \ s) ≤ m t) : (bounded_by m).caratheodory.is_measurable s :=
 begin
   apply of_function_caratheodory, intro t,
   cases t.eq_empty_or_nonempty with h h,
@@ -727,7 +642,7 @@ def directed_supr {ι} [nonempty ι] [partial_order ι] {μ : ι → measure α}
   measure α :=
 begin
   apply measure.of_measurable (λ s _, ⨆ i, μ i s) (by simp),
-
+  sorry
 end
 
 
@@ -736,7 +651,7 @@ lemma supr_apply_of_monotone {ι} [partial_order ι] {μ : ι → measure α} (h
   {s : set α} (hs : is_measurable s) : (⨆ i, μ i) s = ⨆ i, μ i s :=
 begin
   refine le_antisymm _ _,
-  {  },
+  { sorry },
   { refine supr_le _, intro i, exact (le_supr μ i : _) s hs },
 end
 
