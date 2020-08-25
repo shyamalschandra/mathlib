@@ -10,18 +10,20 @@ import measure_theory.giry_monad
 
 TODO:
 
-σ-finite measures (is locally finite enough?):
-- A measure space (X, B, µ) is σ-finite if X can be expressed as the countable union of sets of
-  finite measure
-
-Define product measure
 Define finite (and countably infinite) product measure
 Fubini's theorem
 
 -/
 noncomputable theory
 open_locale classical big_operators
-open function set measure_theory.outer_measure measurable_space
+open function set measure_theory.outer_measure measurable_space topological_space (hiding generate_from)
+
+namespace replace
+lemma measurable.ennreal_add {α : Type*} [measurable_space α] {f g : α → ennreal}
+  (hf : measurable f) (hg : measurable g) : measurable (λa, f a + g a) :=
+hf.add hg
+
+end replace
 
 
 namespace function
@@ -294,6 +296,112 @@ lemma prod_univ_add_prod_univ_le' {α β} [fintype α] [canonically_ordered_comm
 prod_add_prod_le' (mem_univ i) h2i (λ j _, hgf j) (λ j _, hhf j)
 
 end finset
+
+section tsum
+
+open filter
+variables {ι α : Type*} {β : α → Type*} [∀ x, add_comm_monoid (β x)]
+  [∀ x, topological_space (β x)] {f : ι → ∀ x, β x}
+
+lemma pi.has_sum  {g : ∀ x, β x} : has_sum f g ↔ ∀ x, has_sum (λ i, f i x) (g x) :=
+begin
+  simp_rw [has_sum, nhds_pi, filter.tendsto_infi, filter.tendsto_comap_iff],
+  apply forall_congr, intro a, congr', ext s, simp
+end
+
+lemma pi.summable : summable f ↔ ∀ x, summable (λ i, f i x) :=
+by simp [summable, pi.has_sum, classical.skolem]
+
+lemma tsum_apply [∀ x, t2_space (β x)] {x : α} (hf : summable f) : (∑' i, f i) x = ∑' i, f i x :=
+(pi.has_sum.mp hf.has_sum x).tsum_eq.symm
+
+protected lemma ennreal.tsum_apply {ι α : Type*} {f : ι → α → ennreal} {x : α} :
+  (∑' i, f i) x = ∑' i, f i x :=
+tsum_apply $ pi.summable.mpr $ λ _, ennreal.summable
+
+end tsum
+
+lemma measurable_space_ennreal_def :
+  generate_from (range Iio) = (by apply_instance : measurable_space ennreal) :=
+(borel_eq_generate_Iio _).symm
+
+lemma measurable_of_Iio {ι α} [measurable_space ι]
+  [topological_space α] [second_countable_topology α]
+  [linear_order α] [order_topology α] [measurable_space α] [borel_space α] {f : ι → α}
+  (hf : ∀ x, is_measurable (f ⁻¹' Iio x)) :
+  measurable f :=
+begin
+  convert measurable_generate_from _,
+  exact borel_space.measurable_eq.trans (borel_eq_generate_Iio _),
+  rintro _ ⟨x, rfl⟩, exact hf x
+end
+
+lemma measurable_of_Ioi {ι α} [measurable_space ι]
+  [topological_space α] [second_countable_topology α]
+  [linear_order α] [order_topology α] [measurable_space α] [borel_space α] {f : ι → α}
+  (hf : ∀ x, is_measurable (f ⁻¹' Ioi x)) :
+  measurable f :=
+begin
+  convert measurable_generate_from _,
+  exact borel_space.measurable_eq.trans (borel_eq_generate_Ioi _),
+  rintro _ ⟨x, rfl⟩, exact hf x
+end
+
+lemma measurable_of_Iic {ι α} [measurable_space ι]
+  [topological_space α] [second_countable_topology α]
+  [linear_order α] [order_topology α] [measurable_space α] [borel_space α] {f : ι → α}
+  (hf : ∀ x, is_measurable (f ⁻¹' Iic x)) : measurable f :=
+begin
+  apply measurable_of_Ioi,
+  simp_rw [← compl_Iic, preimage_compl, is_measurable.compl_iff],
+  assumption
+end
+
+lemma measurable_of_Ici {ι α} [measurable_space ι]
+  [topological_space α] [second_countable_topology α]
+  [linear_order α] [order_topology α] [measurable_space α] [borel_space α] {f : ι → α}
+  (hf : ∀ x, is_measurable (f ⁻¹' Ici x)) : measurable f :=
+begin
+  apply measurable_of_Iio,
+  simp_rw [← compl_Ici, preimage_compl, is_measurable.compl_iff],
+  assumption
+end
+
+lemma Inter_set_of {ι α} (P : ι → α → Prop) :
+  (⋂ (i : ι), {x : α | P i x }) = {x : α | ∀ (i : ι), P i x} :=
+by { ext, simp }
+
+lemma measurable.supr {ι α β : Type*} [encodable ι] [measurable_space α]
+  [measurable_space β] [topological_space β] [second_countable_topology β] [complete_linear_order β]
+  [borel_space β] [order_topology β]
+  (f : ι → α → β) (h : ∀ i, measurable (f i)) : measurable (⨆ i, f i) :=
+begin
+  apply measurable_of_Iic, simp [preimage, _root_.supr_apply, ← Inter_set_of], intro y,
+  apply is_measurable.Inter, intro i, exact h i is_measurable_Iic
+end
+
+#check ∀ {ι ι₂ : Sort*} {α : Type*} [_inst_2 : has_Sup α] {f : ι → α} {g : ι₂ → α}
+  (h : ι → ι₂), surjective h → (∀ (x : ι), g (h x) = f x) → by exactI (⨆ (x : ι), f x) = ⨆ (y : ι₂), g y
+
+#check @supr_congr
+/-- todo: `ennreal` can probably be generalized to a
+[measurable_space β] [topological_space β] [add_comm_monoid β] [has_continuous_add β]
+  [borel_space β] -/
+lemma measurable.ennreal_tsum {ι α} [encodable ι] [measurable_space α]
+  {f : ι → α → ennreal} (h : ∀ i, measurable (f i)) : measurable (∑' i, f i) :=
+begin
+  convert measurable.supr (λ s x, ∑ (a : ι) in s, f a x) _,
+  { ext1 x, simp [ennreal.tsum_apply, ennreal.tsum_eq_supr_sum, _root_.supr_apply] },
+  intros s t ht,
+end
+
+lemma measurable.tsum {ι α β} [measurable_space α]
+  [measurable_space β] [topological_space β] [add_comm_monoid β] [has_continuous_add β]
+  [borel_space β]
+  {f : ι → α → β} (h : ∀ i, measurable (f i)) : measurable (∑' i, f i) :=
+begin
+  intros s hs,
+end
 
 section complete_lattice
 
@@ -645,7 +753,8 @@ begin
 end
 
 /- Proposition 5.1.3 -/
-lemma measurable.map_prod_mk {μ : measure β} : measurable (λx, map (prod.mk x : β → α × β) μ) :=
+lemma measurable.map_prod_mk {μ : measure β} [sigma_finite μ univ] :
+  measurable (λx, map (prod.mk x : β → α × β) μ) :=
 begin
   apply measurable_of_measurable_coe, intros s hs,
   simp_rw [map_apply measurable_prod_mk_left hs],
@@ -712,17 +821,17 @@ lemma prod_apply_symm {s : set (α × β)} (hs : is_measurable s) :
   μ.prod ν s = ∫⁻ y, μ ((λ x, (x, y)) ⁻¹' s) ∂ν :=
 by rw [prod_eq_prod_symm, prod_symm_apply hs]
 
-/-- Tonelli's Theorem -/
+/-- The Lebesgue intergral is measurable -/
 lemma measurable_lintegral_prod_right (f : α × β → ennreal) :
   measurable (λ x, ∫⁻ y, f (x, y) ∂ν) :=
 begin
-
+  sorry
 end
 
 lemma measurable_lintegral_prod_left (f : α × β → ennreal) :
   measurable (λ y, ∫⁻ x, f (x, y) ∂μ) :=
 begin
-
+  sorry
 end
 
 /-- Tonelli's Theorem -/
