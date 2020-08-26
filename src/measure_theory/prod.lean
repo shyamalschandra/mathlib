@@ -1000,7 +1000,7 @@ lemma measurable.bochner_induction {P : (α → E) → Prop}
 begin
   have : ∀ (f : α →₁ₛ[μ] E), P f, sorry,
   have : ∀ (f : α →₁[μ] E), P f, sorry,
-  exact h_ae _ (this (l1.of_fun f hf h2f)),
+  exact h_ae to_fun_of_fun (this (l1.of_fun f hf h2f)),
 end
 
 /-- The Bochner intergral is measurable. This shows that the integrand of (the right-hand-side of)
