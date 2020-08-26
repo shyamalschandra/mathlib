@@ -16,15 +16,7 @@ Fubini's theorem
 -/
 noncomputable theory
 open_locale classical big_operators
-open function set measure_theory.outer_measure measurable_space topological_space (hiding generate_from)
-
-namespace replace
-lemma measurable.ennreal_add {α : Type*} [measurable_space α] {f g : α → ennreal}
-  (hf : measurable f) (hg : measurable g) : measurable (λa, f a + g a) :=
-hf.add hg
-
-end replace
-
+open function set measure_theory.outer_measure measurable_space (hiding is_measurable) topological_space (hiding generate_from)
 
 namespace function
 
@@ -116,6 +108,10 @@ begin
 end
 
 end
+
+lemma Inter_set_of {ι α} (P : ι → α → Prop) :
+  (⋂ (i : ι), {x : α | P i x }) = {x : α | ∀ (i : ι), P i x} :=
+by { ext, simp }
 
 end set
 open set
@@ -285,10 +281,6 @@ begin
   simp_rw [← compl_Ici, preimage_compl, is_measurable.compl_iff],
   assumption
 end
-
-lemma Inter_set_of {ι α} (P : ι → α → Prop) :
-  (⋂ (i : ι), {x : α | P i x }) = {x : α | ∀ (i : ι), P i x} :=
-by { ext, simp }
 
 lemma measurable.supr {ι α β : Type*} [encodable ι] [measurable_space α]
   [measurable_space β] [topological_space β] [second_countable_topology β] [complete_linear_order β]
@@ -560,13 +552,12 @@ end measure
 
 end measure_pi
 
-
 /-! ### Prod -/
 
 variables {α β γ : Type*} [measurable_space α] [measurable_space β] [measurable_space γ]
 
 def is_pi_system {α} (C : set (set α)) : Prop :=
-∀ ⦃s t : set α⦄, s ∈ C → t ∈ C → (s ∩ t).nonempty → s ∩ t ∈ C
+∀ s t ∈ C, (s ∩ t : set α).nonempty → s ∩ t ∈ C
 
 lemma generate_from_prod : generate_from
     (image2 set.prod { s | is_measurable s } { t | is_measurable t } : set (set (α × β))) =
@@ -605,6 +596,65 @@ def sigma_finite_mk {μ : measure α} {s : set α} (sets : ℕ → set α)
       rw ennreal.sum_lt_top_iff, exact λ j _, h2 j,
       exact (finset.range (i+1)).countable_to_set },
   Union_spanning_sets := by { rw [Union_accumulate, h3] } }
+
+
+------
+section sigma_finite
+/-- A set `s` is called σ-finite w.r.t. measure `μ` if there is a countable collection of sets
+  `{ A i | i ∈ ℕ }` such that `μ (A i) < ⊤` and `⋃ i, A i = s`.
+  A measure `μ` is called σ-finite if `univ` is σ-finite w.r.t. `μ`.
+  Note that this class is not a Proposition.
+  -/
+class sigma_finite (μ : measure α) (s : set α) :=
+(spanning_sets : ℕ → set α)
+(monotone_spanning_sets : monotone spanning_sets)
+(is_measurable_spanning_sets : ∀ i, is_measurable (spanning_sets i))
+(measure_spanning_sets_lt_top : ∀ i, μ (spanning_sets i) < ⊤)
+(Union_spanning_sets : (⋃ i, spanning_sets i) = s)
+
+export sigma_finite (spanning_sets)
+
+lemma monotone_spanning_sets (μ : measure α) (s : set α) [sigma_finite μ s] :
+  monotone (spanning_sets μ s) :=
+sigma_finite.monotone_spanning_sets
+
+lemma is_measurable_spanning_sets (μ : measure α) (s : set α) [sigma_finite μ s] (i : ℕ) :
+  is_measurable (spanning_sets μ s i) :=
+sigma_finite.is_measurable_spanning_sets i
+
+lemma measure_spanning_sets_lt_top (μ : measure α) (s : set α) [sigma_finite μ s] (i : ℕ) :
+  μ (spanning_sets μ s i) < ⊤ :=
+sigma_finite.measure_spanning_sets_lt_top i
+
+lemma Union_spanning_sets (μ : measure α) (s : set α) [sigma_finite μ s] :
+  (⋃ i, spanning_sets μ s i) = s :=
+sigma_finite.Union_spanning_sets
+
+/-- Every set is σ-finite w.r.t. a finite measure -/
+def finite_measure.to_sigma_finite (μ : measure α) [finite_measure μ] (s : set α)
+  (hs : is_measurable s) : sigma_finite μ s :=
+sorry
+
+instance restrict.finite_measure (μ : measure α) {s : set α} [hs : fact (μ s < ⊤)] :
+  finite_measure (μ.restrict s) :=
+sorry
+
+
+lemma measure_compl {μ : measure α} {s : set α} (h₁ : is_measurable s) (h_fin : μ s < ⊤) :
+  μ (sᶜ) = μ univ - μ s :=
+by { rw compl_eq_univ_diff, exact measure_diff (subset_univ s) is_measurable.univ h₁ h_fin }
+
+lemma induction_on_inter {C : set α → Prop} {s : set (set α)} [m : measurable_space α]
+  (h_eq : m = generate_from s)
+  (h_inter : is_pi_system s)
+  (h_empty : C ∅) (h_basic : ∀t∈s, C t) (h_compl : ∀t, is_measurable t → C t → C tᶜ)
+  (h_union : ∀f:ℕ → set α, pairwise (disjoint on f) →
+    (∀i, is_measurable (f i)) → (∀i, C (f i)) → C (⋃i, f i)) :
+  ∀{t}, is_measurable t → C t
+
+end sigma_finite
+------
+
 
 namespace measure
 
@@ -655,20 +705,22 @@ begin
   { refine supr_le _, intro i, exact (le_supr μ i : _) s hs },
 end
 
-lemma supr_restrict {ι} {μ : measure α} {t : ι → set α} :
-  (⨆ i, μ.restrict (t i)) = μ.restrict (⋃ i, t i) :=
+-- lemma supr_restrict {ι} [encodable ι] {μ : measure α} {t : ι → set α} :
+--   (⨆ i, μ.restrict (t i)) = μ.restrict (⋃ i, t i) :=
+-- begin
+--   ext s hs, rw [restrict_Union_apply_eq_supr],
+-- end
+
+lemma supr_restrict_spanning_sets {μ : measure α} [sigma_finite μ univ] {s : set α}
+  (hs : is_measurable s) :
+  (⨆ i, μ.restrict (spanning_sets μ univ i) s) = μ s :=
 begin
-  ext1 s hs, simp [hs, outer_measure.supr_apply],
+  convert (restrict_Union_apply_eq_supr (is_measurable_spanning_sets μ univ) _ hs).symm,
+  { simp [Union_spanning_sets] },
+  { exact directed_of_sup (monotone_spanning_sets μ univ) }
 end
 
-lemma supr_restrict_spanning_sets {μ : measure α} [sigma_finite μ univ] {s : set α} :
-  ⨆ i, μ.restrict (spanning_sets μ univ i) s = μ s :=
-begin
-
-end
-
-/- Proposition 5.1.3 -/
-lemma measurable.map_prod_mk {μ : measure β} [sigma_finite μ univ] :
+lemma measurable.map_prod_mk_finite {μ : measure β} [finite_measure μ] :
   measurable (λx, map (prod.mk x : β → α × β) μ) :=
 begin
   apply measurable_of_measurable_coe, intros s hs,
@@ -677,9 +729,49 @@ begin
   { simp [measurable_const] },
   { rintro _ ⟨s, t, hs, ht, rfl⟩, simp only [mk_preimage_prod_right_eq_if, measure_if],
     exact measurable_const.indicator hs },
+  { intros t ht h2t,
+    simp_rw [preimage_compl, measure_compl (measurable_prod_mk_left ht) (measure_lt_top μ _)],
+    exact measurable_const.ennreal_sub h2t },
+  { intros f h1f h2f h3f, simp_rw [preimage_Union, measure_Union h1f h2f],  },
+end
+
+lemma measurable.map_prod_mk {μ : measure β} [sigma_finite μ univ] :
+  measurable (λx, map (prod.mk x : β → α × β) μ) :=
+begin
+  apply measurable_of_measurable_coe, intros s hs,
+  simp_rw [map_apply measurable_prod_mk_left hs],
+  -- intros t ht,
+  have : ∀ x, is_measurable {y : β | (x, y) ∈ s} := λ x, measurable_prod_mk_left hs,
+  simp_rw [preimage], simp only [← supr_restrict_spanning_sets, this],
+  /-
+invalid type ascription, term has type
+  measurable (⨆ (i : ?m_6), ?m_7 i)
+but is expected to have type
+  measurable (λ (b : α), ⨆ (i : ℕ), ⇑(μ.restrict (spanning_sets μ univ i)) {x : β | (b, x) ∈ s})
+state:
+α : Type u_1,
+β : Type u_2,
+_inst_1 : measurable_space α,
+_inst_2 : measurable_space β,
+μ : measure β,
+_inst_4 : sigma_finite μ univ,
+s : set (α × β),
+hs : is_measurable s,
+this : ∀ (x : α), is_measurable {y : β | (x, y) ∈ s}
+⊢ measurable (λ (b : α), ⨆ (i : ℕ), ⇑(μ.restrict (spanning_sets μ univ i)) {x : β | (b, x) ∈ s})
+-/
+
+  convert measurable.supr (λ i b, (μ.restrict (spanning_sets μ univ i)) {x : β | (b, x) ∈ s}) _,
+  { ext1 x, simp [_root_.supr_apply] },
+  refine induction_on_inter generate_from_prod.symm is_pi_system_prod _ _ _ _ hs,
+  { simp [measurable_const] },
+  { rintro _ ⟨s, t, hs, ht, rfl⟩, simp only [mk_preimage_prod_right_eq_if, measure_if],
+    exact measurable_const.indicator hs },
   { intros t ht h2t, simp_rw [preimage_compl], sorry },
   { intros f h1f h2f h3f, simp_rw [preimage_Union], sorry },
 end
+
+variables [sigma_finite μ univ] [sigma_finite ν univ]
 
 @[simp] lemma prod_apply {s : set (α × β)} (hs : is_measurable s) :
   μ.prod ν s = ∫⁻ x, ν (prod.mk x ⁻¹' s) ∂μ :=
@@ -710,31 +802,30 @@ end
 by simp_rw [prod_symm_apply (hs.prod ht), mk_preimage_prod_left_eq_if, measure_if,
   lintegral_indicator _ ht, lintegral_const, restrict_apply is_measurable.univ, univ_inter]
 
-variables  [sigma_finite μ univ] [sigma_finite ν univ]
-
 lemma prod_unique {μν₁ μν₂ : measure (α × β)}
   (h₁ : ∀ s t, is_measurable s → is_measurable t → μν₁ (s.prod t) = μ s * ν t)
   (h₂ : ∀ s t, is_measurable s → is_measurable t → μν₂ (s.prod t) = μ s * ν t) : μν₁ = μν₂ :=
-begin
-  refine ext_sigma_finite _ generate_from_prod.symm is_pi_system_prod
-    (λ i, (spanning_sets μ univ i).prod (spanning_sets ν univ i)) _ _ _ _ _ _,
-  { rw [Union_prod_of_monotone (monotone_spanning_sets μ _) (monotone_spanning_sets ν _)],
-    simp_rw [Union_spanning_sets, univ_prod_univ] },
-  { intro i, apply mem_image2_of_mem; apply is_measurable_spanning_sets },
-  { intros i j hij, apply prod_mono; refine monotone_spanning_sets _ _ hij },
-  { intro i, rw [h₁], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
-    all_goals { apply is_measurable_spanning_sets } },
-  { intro i, rw [h₂], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
-    all_goals { apply is_measurable_spanning_sets } },
-  { rintro _ ⟨s, t, hs, ht, rfl⟩, simp * at * }
-end
+sorry
+-- begin
+--   refine ext_sigma_finite _ generate_from_prod.symm is_pi_system_prod
+--     (λ i, (spanning_sets μ univ i).prod (spanning_sets ν univ i)) _ _ _ _ _ _,
+--   { rw [Union_prod_of_monotone (monotone_spanning_sets μ _) (monotone_spanning_sets ν _)],
+--     simp_rw [Union_spanning_sets, univ_prod_univ] },
+--   { intro i, apply mem_image2_of_mem; apply is_measurable_spanning_sets },
+--   { intros i j hij, apply prod_mono; refine monotone_spanning_sets _ _ hij },
+--   { intro i, rw [h₁], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
+--     all_goals { apply is_measurable_spanning_sets } },
+--   { intro i, rw [h₂], apply ennreal.mul_lt_top; apply measure_spanning_sets_lt_top,
+--     all_goals { apply is_measurable_spanning_sets } },
+--   { rintro _ ⟨s, t, hs, ht, rfl⟩, simp * at * }
+-- end
 
 lemma prod_eq_prod_symm : μ.prod ν = μ.prod_symm ν :=
 prod_unique (λ _ _, prod_prod) (λ _ _, prod_symm_prod)
 
 lemma prod_apply_symm {s : set (α × β)} (hs : is_measurable s) :
   μ.prod ν s = ∫⁻ y, μ ((λ x, (x, y)) ⁻¹' s) ∂ν :=
-by rw [prod_eq_prod_symm, prod_symm_apply hs]
+by simp [prod_eq_prod_symm, prod_symm_apply, hs]
 
 /-- The Lebesgue intergral is measurable -/
 lemma measurable_lintegral_prod_right (f : α × β → ennreal) :
