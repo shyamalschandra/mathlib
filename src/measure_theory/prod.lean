@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Floris van Doorn
 -/
 import measure_theory.giry_monad
+import measure_theory.bochner_integration
 
 /-!
 # The product measure space
@@ -567,7 +568,7 @@ end
 
 /-! ### Prod -/
 
-variables {α β γ : Type*} [measurable_space α] [measurable_space β] [measurable_space γ]
+variables {α β : Type*} [measurable_space α] [measurable_space β]
 
 /-- x -/
 def is_pi_system {α} (C : set (set α)) : Prop :=
@@ -807,26 +808,6 @@ end both_sigma_finite
 --   { }
 -- end
 
-
--- lemma simple_func_induction {P : simple_func α ennreal → Prop}
---   (h1 : ∀ ⦃s⦄, is_measurable s → P ((simple_func.const _ 1).restrict s))
---   (h2 : ∀ ⦃f g⦄, P f → P g → P (f + g))
---   (h3 : ∀ (c : ennreal) ⦃f⦄, P f → P (c • f)) (f : simple_func α ennreal) : P f :=
--- begin
---   generalize' h : f.range = s, simp [← finset.coe_inj] at h, revert s f h,
---   refine finset.induction _ _,
---   { intros f hf,
---     convert h1 is_measurable.univ, ext1 x, exact false.elim (range_eq_empty.mp hf ⟨x⟩) },
---   { intros x s hxs ih f hf,
---     rcases s.eq_empty_or_nonempty with rfl|h,
---     { simp [simple_func.range, ← finset.coe_inj, range_eq_empty] at hf,
---       convert h3 (measurable_one.indicator is_measurable.univ) (h1 is_measurable.univ),
---       rw range_subset_singleton.mp (subset_of_eq hf), ext1 y, simp },
---     { cases h with y hy,
-
---         }}
--- end
-
 lemma range_piecewise {α : Type*} {β : Sort*} (s : set α) (f g : α → β) [∀j, decidable (j ∈ s)] :
   range (s.piecewise f g) = f '' s ∪ g '' sᶜ :=
 begin
@@ -847,6 +828,48 @@ lemma image_preimage_eq_iff {α β} {f : α → β} {s : set β} : f '' (f ⁻¹
 lemma image_compl_preimage' {α β} {f : α → β} {s : set β} : f '' ((f ⁻¹' s)ᶜ) = range f \ s :=
 by rw [compl_eq_univ_diff, image_compl_preimage, image_univ]
 
+section simple_func
+open simple_func finset
+
+@[elab_as_eliminator]
+lemma simple_func.induction {γ} [add_monoid γ] {P : simple_func α γ → Prop}
+  (h_ind : ∀ c {s} (hs : is_measurable s),
+    P (simple_func.piecewise s hs (simple_func.const _ c) (simple_func.const _ 0)))
+  (h_sum : ∀ ⦃f g⦄, P f → P g → P (f + g)) (f : simple_func α γ) : P f :=
+begin
+  generalize' h : f.range \ {0} = s,
+  rw [← finset.coe_inj, finset.coe_sdiff, finset.coe_singleton, simple_func.coe_range] at h,
+  revert s f h, refine finset.induction _ _,
+  { intros f hf, rw [finset.coe_empty, diff_eq_empty, range_subset_singleton] at hf,
+    convert h_ind 0 is_measurable.univ, ext x, simp [hf] },
+  { intros x s hxs ih f hf,
+    let g := simple_func.piecewise (f ⁻¹' {x}) (f.is_measurable_preimage _) 0 f,
+    have Pg : P g,
+    { apply ih, simp only [g, simple_func.coe_piecewise, range_piecewise],
+      rw [image_compl_preimage', union_diff_distrib, diff_diff_comm, hf, finset.coe_insert,
+        insert_diff_self_of_not_mem, diff_eq_empty.mpr, set.empty_union],
+      { rw [set.image_subset_iff], convert set.subset_univ _,
+        exact preimage_const_of_mem (mem_singleton _) },
+      { rwa [finset.mem_coe] }},
+    convert h_sum Pg (h_ind x (f.is_measurable_preimage {x})),
+    { ext1 y, by_cases hy : y ∈ f ⁻¹' {x}, simpa [hy], simp [hy] }}
+end
+
+-- /- deprecated -/
+-- @[elab_as_eliminator]
+-- lemma simple_func.induction2 {γ} [add_monoid γ] (P : (α → γ) → Prop)
+--   (h_ind : ∀ c {s}, is_measurable s → P (indicator s (λ _, c)))
+--   (h_sum : ∀ ⦃f g⦄, P f → P g → P (f + g)) (f : simple_func α γ) : P f :=
+-- simple_func.induction h_ind (λ f g hf hg, h_sum hf hg) f
+
+-- /- deprecated -/
+-- @[elab_as_eliminator]
+-- lemma simple_func.induction3 {γ} [measurable_space γ] [add_monoid γ]
+--   (P : (α → γ) → Prop) (h_ind : ∀ (c : γ) ⦃s⦄, is_measurable s → P (indicator s (λ _, c)))
+--   (h_sum : ∀ ⦃f g⦄, measurable f → measurable g → P f → P g → P (f + g))
+--   (f : simple_func α γ) : P f :=
+-- simple_func.induction h_ind (λ f g hf hg, h_sum f.measurable g.measurable hf hg) f
+
 lemma measurable.ennreal_induction {P : (α → ennreal) → Prop}
   (h_ind : ∀ (c : ennreal) ⦃s⦄, is_measurable s → P (indicator s (λ _, c)))
   (h_sum : ∀ ⦃f g⦄, measurable f → measurable g → P f → P g → P (f + g))
@@ -854,30 +877,14 @@ lemma measurable.ennreal_induction {P : (α → ennreal) → Prop}
     (hP : ∀ n, P (f n)), P (λ x, ⨆ n, f n x))
   ⦃f : α → ennreal⦄ (hf : measurable f) : P f :=
 begin
-  have : ∀ (s : finset ennreal) (f : simple_func α ennreal), range f \ {0} = ↑s → P f,
-  { refine finset.induction _ _,
-    { intros f hf, rw [finset.coe_empty, diff_eq_empty, range_subset_singleton] at hf, rw hf,
-      convert h_ind 0 is_measurable.univ, simp },
-    { intros x s hxs ih f hf,
-      have mx := f.measurable (is_measurable_singleton x),
-      let g := (simple_func.const α 0).piecewise (f ⁻¹' {x}) mx f,
-      have Pg : P g,
-      { apply ih, simp only [g, range_piecewise, is_measurable_singleton, pi.zero_apply,
-          simple_func.const_zero, simple_func.coe_zero, simple_func.coe_piecewise],
-        rw [image_compl_preimage', union_diff_distrib, diff_diff_comm, hf, finset.coe_insert,
-          insert_diff_self_of_not_mem, diff_eq_empty.mpr, empty_union],
-        { rw [image_subset_iff], convert subset_univ _,
-          exact preimage_const_of_mem (mem_singleton _) },
-        { rwa [finset.mem_coe] }},
-      have mg : measurable g := g.measurable,
-      convert h_sum mg _ Pg (h_ind x mx),
-      { ext1 y, by_cases hy : y ∈ f ⁻¹' {x}, simpa [hy], simp [hy] },
-      { convert ((simple_func.const _ x).restrict (f ⁻¹' {x})).measurable,
-        simp [f.measurable (is_measurable_singleton x)] }}},
   convert h_supr (λ n, (simple_func.eapprox f n).measurable) (simple_func.monotone_eapprox f) _,
   { ext1 x, rw [simple_func.supr_eapprox_apply f hf] },
-  { intro n, apply this ((simple_func.eapprox f n).range \ {0}), simp [← finset.coe_inj] }
+  { exact λ n, simple_func.induction (λ c s hs, h_ind c hs)
+      (λ f g hf hg, h_sum f.measurable g.measurable hf hg) (eapprox f n) }
 end
+
+end simple_func
+
 
 lemma measurable.ennreal_induction' {P : (α → ennreal) → Prop}
   (h_ind : ∀ ⦃s⦄, is_measurable s → P (indicator s 1))
@@ -892,8 +899,9 @@ begin
   ext1 x, simp [indicator]
 end
 
+
 /-- The Lebesgue intergral is measurable. This shows that the integrand of (the right-hand-side of)
-  Tonelli's theorem is integrable. -/
+  Tonelli's theorem is measurable. -/
 lemma measurable_lintegral_prod_right [sigma_finite ν univ] :
   ∀ ⦃f : α × β → ennreal⦄ (hf : measurable f), measurable (λ x, ∫⁻ y, f (x, y) ∂ν) :=
 begin
@@ -910,7 +918,7 @@ begin
 end
 
 /-- The Lebesgue intergral is measurable This shows that the integrand of (the right-hand-side of)
-  the symmetric version of Tonelli's theorem is integrable. -/
+  the symmetric version of Tonelli's theorem is measurable. -/
 lemma measurable_lintegral_prod_left [sigma_finite μ univ] :
   ∀ ⦃f : α × β → ennreal⦄ (hf : measurable f), measurable (λ y, ∫⁻ x, f (x, y) ∂μ) :=
 begin
@@ -928,7 +936,7 @@ begin
 end
 
 /-- Tonelli's Theorem: For `ennreal`-valued measurable functions on `α × β`,
-  the integral of `f` is the iterated integral. -/
+  the integral of `f` is equal to the iterated integral. -/
 lemma lintegral_prod [sigma_finite ν univ] :
   ∀ ⦃f : α × β → ennreal⦄ (hf : measurable f), ∫⁻ z, f z ∂(μ.prod ν) = ∫⁻ x, ∫⁻ y, f (x, y) ∂ν ∂μ :=
 begin
@@ -949,7 +957,7 @@ begin
 end
 
 /-- The symmetric verion of Tonelli's Theorem: For `ennreal`-valued measurable functions on `α × β`,
-  the integral of `f` is the iterated integral, in reverse order. -/
+  the integral of `f` is equal to the iterated integral, in reverse order. -/
 lemma lintegral_prod_symm [sigma_finite ν univ] [sigma_finite μ univ] :
   ∀ ⦃f : α × β → ennreal⦄ (hf : measurable f), ∫⁻ z, f z ∂(μ.prod ν) = ∫⁻ y, ∫⁻ x, f (x, y) ∂μ ∂ν :=
 begin
@@ -968,6 +976,58 @@ begin
       λ n, measurable_lintegral_prod_left (hf n),
     have l2f : monotone (λ n y, ∫⁻ x, f n (x, y) ∂μ) := λ i j hij y, lintegral_mono (k2f y hij),
     simp only [lintegral_supr hf h2f, lintegral_supr (kf _), k2f, lintegral_supr lf l2f, h3f] },
+end
+
+/-- The reversed version of Tonelli's Theorem. -/
+lemma lintegral_lintegral [sigma_finite ν univ] ⦃f : α → β → ennreal⦄
+  (hf : measurable (λ z : α × β, f z.1 z.2)) :
+  ∫⁻ x, ∫⁻ y, f x y ∂ν ∂μ = ∫⁻ z, f z.1 z.2 ∂(μ.prod ν) :=
+(lintegral_prod hf).symm
+
+variables {E : Type*} [normed_group E] [second_countable_topology E] [normed_space ℝ E]
+  [complete_space E] [measurable_space E] [borel_space E]
+
+#check @l1.simple_func.dense_range
+
+/- rename `to_fun_of_fun` to `coe_of_fun` (in `l1`) -/
+
+lemma measurable.bochner_induction {P : (α → E) → Prop}
+  (h_ind : ∀ (c : E) ⦃s⦄, is_measurable s → P (indicator s (λ _, c)))
+  (h_sum : ∀ ⦃f g⦄, measurable f → measurable g → P f → P g → P (f + g))
+  (h_closed : is_closed {f : α →₁[μ] E | P f} )
+  (h_ae : ∀ ⦃f g⦄, f =ᵐ[μ] g → P f → P g)
+  ⦃f : α → E⦄ (hf : measurable f) (h2f : integrable f μ) : P f :=
+begin
+  have : ∀ (f : α →₁ₛ[μ] E), P f, sorry,
+  have : ∀ (f : α →₁[μ] E), P f, sorry,
+  exact h_ae _ (this (l1.of_fun f hf h2f)),
+end
+
+/-- The Bochner intergral is measurable. This shows that the integrand of (the right-hand-side of)
+  Fubini's theorem is measurable. -/
+lemma measurable_integral_prod_left [sigma_finite ν univ] :
+  ∀ ⦃f : α × β → E⦄ (h1f : measurable f) (h2f : integrable f (μ.prod ν)),
+    measurable (λ x, ∫ y, f (x, y) ∂ν) :=
+begin
+
+end
+
+/-- Fubini's Theorem: For integrable functions on `α × β`,
+  the Bochner integral of `f` is equal to the iterated Bochner integral. -/
+lemma integrable_integral_prod_left [sigma_finite ν univ] :
+  ∀ ⦃f : α × β → E⦄ (h1f : measurable f) (h2f : integrable f (μ.prod ν)),
+    measurable (λ x, ∫ y, f (x, y) ∂ν) :=
+begin
+
+end
+
+/-- Fubini's Theorem: For integrable functions on `α × β`,
+  the Bochner integral of `f` is equal to the iterated Bochner integral. -/
+lemma integral_prod [sigma_finite ν univ] :
+  ∀ ⦃f : α × β → E⦄ (h1f : measurable f) (h2f : integrable f (μ.prod ν)),
+  ∫ z, f z ∂(μ.prod ν) = ∫ x, ∫ y, f (x, y) ∂ν ∂μ :=
+begin
+
 end
 
 end measure
