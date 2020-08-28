@@ -122,6 +122,18 @@ lemma subset_of_eq {α} {s t : set α} : s = t → s ⊆ t :=
 by { rintro rfl, exact subset.rfl }
 
 
+lemma diff_diff_comm {α} {s t u : set α} : s \ t \ u = s \ u \ t :=
+by simp_rw [diff_diff, union_comm]
+
+-- rename: image_compl_preimage -> image_diff_preimage
+
+lemma image_preimage_eq_iff {α β} {f : α → β} {s : set β} : f '' (f ⁻¹' s) = s ↔ s ⊆ range f :=
+⟨by { rintro h, rw [← h], apply image_subset_range }, image_preimage_eq_of_subset⟩
+
+-- todo: rename
+lemma image_compl_preimage' {α β} {f : α → β} {s : set β} : f '' ((f ⁻¹' s)ᶜ) = range f \ s :=
+by rw [compl_eq_univ_diff, image_compl_preimage, image_univ]
+
 -- function
 variables {α β γ : Type*}
 lemma comp_piecewise (h : β → γ) {f g : α → β} {s : set α} {x : α} :
@@ -130,6 +142,14 @@ by by_cases hx : x ∈ s; simp [hx]
 
 @[simp] lemma piecewise_same {f : α → β} {s : set α} : s.piecewise f f = f :=
 by { ext x, by_cases hx : x ∈ s; simp [hx] }
+
+lemma range_piecewise {α : Type*} {β : Sort*} (s : set α) (f g : α → β) [∀j, decidable (j ∈ s)] :
+  range (s.piecewise f g) = f '' s ∪ g '' sᶜ :=
+begin
+  ext y, split,
+  { rintro ⟨x, rfl⟩, by_cases h : x ∈ s;[left, right]; use x; simp [h] },
+  { rintro (⟨x, hx, rfl⟩|⟨x, hx, rfl⟩); use x; simp * at * }
+end
 
 -- indicator
 @[simp] lemma piecewise_eq_indicator [has_zero β] {f : α → β} {s : set α} :
@@ -142,6 +162,24 @@ indicator_zero β s
 lemma comp_indicator [has_zero β] (h : β → γ) {f : α → β} {s : set α} {x : α} :
   h (s.indicator f x) = s.piecewise (h ∘ f) (const α (h 0)) x :=
 comp_piecewise h
+
+lemma indicator_add_eq_left [add_monoid β] {f g : α → β} (h : univ ⊆ f ⁻¹' {0} ∪ g ⁻¹' {0}) :
+  (f ⁻¹' {0})ᶜ.indicator (f + g) = f :=
+begin
+  ext x, by_cases hx : x ∈ (f ⁻¹' 0)ᶜ,
+  { have : g x = 0, { simp at hx, specialize h (mem_univ x), simpa [hx] using h },
+    simp [hx, this] },
+  { simp * at * }
+end
+
+lemma indicator_add_eq_right [add_monoid β] {f g : α → β} (h : univ ⊆ f ⁻¹' {0} ∪ g ⁻¹' {0}) :
+  (g ⁻¹' {0})ᶜ.indicator (f + g) = g :=
+begin
+  ext x, by_cases hx : x ∈ (g ⁻¹' 0)ᶜ,
+  { have : f x = 0, { simp at hx, specialize h (mem_univ x), simpa [hx] using h },
+    simp [hx, this] },
+  { simp * at * }
+end
 
 end set
 open set
@@ -161,6 +199,10 @@ rfl
 @[simp] lemma comp_zero [has_zero β] {f : β → γ} : f ∘ 0 = const α (f 0) := rfl
 
 @[simp] lemma zero_comp [has_zero γ] {f : α → β} : (0 : β → γ) ∘ f = 0 := rfl
+
+@[simp] lemma const_comp {f : α → β} {c : γ} : const β c ∘ f = const α c := rfl
+
+@[simp] lemma comp_const {f : β → γ} {b : β} : f ∘ const α b = const α (f b) := rfl
 
 end
 
@@ -260,8 +302,7 @@ prod_add_prod_le' (mem_univ i) h2i (λ j _, hgf j) (λ j _, hhf j)
 
 end finset
 
-section ennreal
-open ennreal
+namespace ennreal
 
 lemma ne_top_of_mul_ne_top_left {a b : ennreal} (h : a * b ≠ ⊤) (hb : b ≠ 0) : a ≠ ⊤ :=
 by { simp [mul_eq_top, hb, not_or_distrib] at h ⊢, exact h.2 }
@@ -274,6 +315,9 @@ by { rw [ennreal.lt_top_iff_ne_top] at h ⊢, exact ne_top_of_mul_ne_top_left h 
 
 lemma lt_top_of_mul_lt_top_right {a b : ennreal} (h : a * b < ⊤) (ha : a ≠ 0) : b < ⊤ :=
 lt_top_of_mul_lt_top_left (by rwa [mul_comm]) ha
+
+lemma not_lt_top {x : ennreal} : ¬ x < ⊤ ↔ x = ⊤ :=
+by rw [lt_top_iff_ne_top, not_not]
 
 end ennreal
 
@@ -386,8 +430,6 @@ end complete_lattice
 
 
 namespace measure_theory
-
-section
 
 namespace outer_measure
 section bounded_by
@@ -670,15 +712,101 @@ def sigma_finite_mk {μ : measure α} {s : set α} (sets : ℕ → set α)
   Union_spanning_sets := by { rw [Union_accumulate, h3] } }
 
 namespace measure
+lemma supr_restrict_spanning_sets {μ : measure α} [sigma_finite μ univ] {s : set α}
+  (hs : is_measurable s) :
+  (⨆ i, μ.restrict (spanning_sets μ univ i) s) = μ s :=
+begin
+  convert (restrict_Union_apply_eq_supr (is_measurable_spanning_sets μ univ) _ hs).symm,
+  { simp [Union_spanning_sets] },
+  { exact directed_of_sup (monotone_spanning_sets μ univ) }
+end
 
-variables (μ : measure α) (ν : measure β)
+end measure
+end measure_theory
+
+variables {α β : Type*} [measurable_space α] [measurable_space β]
+  {μ : measure_theory.measure α} {ν : measure_theory.measure β}
+open measure_theory measure_theory.measure
+
+lemma is_measurable.measure_prod_mk_left_finite [finite_measure ν] {s : set (α × β)}
+  (hs : is_measurable s) : measurable (λ x, ν (prod.mk x ⁻¹' s)) :=
+begin
+  refine induction_on_inter generate_from_prod.symm is_pi_system_prod _ _ _ _ hs,
+  { simp [measurable_zero] },
+  { rintro _ ⟨s, t, hs, ht, rfl⟩, simp only [mk_preimage_prod_right_eq_if, measure_if],
+    exact measurable_const.indicator hs },
+  { intros t ht h2t,
+    simp_rw [preimage_compl, measure_compl (measurable_prod_mk_left ht) (measure_lt_top ν _)],
+    exact measurable_const.ennreal_sub h2t },
+  { intros f h1f h2f h3f, simp_rw [preimage_Union],
+    have : ∀ b, ν (⋃ i, prod.mk b ⁻¹' f i) = ∑' i, ν (prod.mk b ⁻¹' f i) :=
+      λ b, measure_Union (λ i j hij, disjoint.preimage _ (h1f i j hij))
+        (λ i, measurable_prod_mk_left (h2f i)),
+    simp_rw [this], apply measurable.ennreal_tsum h3f },
+end
+
+lemma is_measurable.measure_prod_mk_left [sigma_finite ν univ] {s : set (α × β)}
+  (hs : is_measurable s) : measurable (λ x, ν (prod.mk x ⁻¹' s)) :=
+begin
+  have : ∀ x, is_measurable (prod.mk x ⁻¹' s) := λ x, measurable_prod_mk_left hs,
+  simp only [← supr_restrict_spanning_sets, this],
+  apply measurable.supr, intro i,
+  haveI : fact _ := measure_spanning_sets_lt_top ν univ i,
+  exact hs.measure_prod_mk_left_finite
+end
+
+lemma measurable.map_prod_mk_left [sigma_finite ν univ] : measurable (λ x : α, map (prod.mk x) ν) :=
+begin
+  apply measurable_of_measurable_coe, intros s hs,
+  simp_rw [map_apply measurable_prod_mk_left hs],
+  exact hs.measure_prod_mk_left
+end
+
+/- Is there a way to do this without duplicating? -/
+lemma is_measurable.measure_prod_mk_right_finite {μ : measure α} [finite_measure μ] {s : set (α × β)}
+  (hs : is_measurable s) : measurable (λ y, μ ((λ x, (x, y)) ⁻¹' s)) :=
+begin
+  refine induction_on_inter generate_from_prod.symm is_pi_system_prod _ _ _ _ hs,
+  { simp [measurable_zero] },
+  { rintro _ ⟨s, t, hs, ht, rfl⟩, simp only [mk_preimage_prod_left_eq_if, measure_if],
+    exact measurable_const.indicator ht },
+  { intros t ht h2t,
+    simp_rw [preimage_compl, measure_compl (measurable_prod_mk_right ht) (measure_lt_top μ _)],
+    exact measurable_const.ennreal_sub h2t },
+  { intros f h1f h2f h3f, simp_rw [preimage_Union],
+    have : ∀ y, μ (⋃ i, (λ x, (x, y)) ⁻¹' f i) = ∑' i, μ ((λ x, (x, y)) ⁻¹' f i) :=
+      λ y, measure_Union (λ i j hij, disjoint.preimage _ (h1f i j hij))
+        (λ i, measurable_prod_mk_right (h2f i)),
+    simp_rw [this], apply measurable.ennreal_tsum h3f },
+end
+
+lemma is_measurable.measure_prod_mk_right {μ : measure α} [sigma_finite μ univ] {s : set (α × β)}
+  (hs : is_measurable s) : measurable (λ y, μ ((λ x, (x, y)) ⁻¹' s)) :=
+begin
+  have : ∀ y, is_measurable ((λ x, (x, y)) ⁻¹' s) := λ y, measurable_prod_mk_right hs,
+  simp only [← supr_restrict_spanning_sets, this],
+  apply measurable.supr, intro i,
+  haveI : fact _ := measure_spanning_sets_lt_top μ univ i,
+  exact hs.measure_prod_mk_right_finite
+end
+
+lemma measurable.map_prod_mk_right {μ : measure α} [sigma_finite μ univ] :
+  measurable (λ y : β, map (λ x : α, (x, y)) μ) :=
+begin
+  apply measurable_of_measurable_coe, intros s hs,
+  simp_rw [map_apply measurable_prod_mk_right hs],
+  exact hs.measure_prod_mk_right
+end
+
+namespace measure_theory
+namespace measure
 
 /-- The product of two measures. -/
-protected def prod : measure (α × β) :=
+protected def prod (μ : measure α) (ν : measure β) : measure (α × β) :=
 bind μ $ λ x : α, map (prod.mk x) ν
 
 /-- The symmetric version of the product of two measures. -/
-protected def prod_symm : measure (α × β) :=
+protected def prod_symm (μ : measure α) (ν : measure β) : measure (α × β) :=
 bind ν $ λ y : β, map (λ x, (x, y)) μ
 
 variables {μ ν}
@@ -717,87 +845,8 @@ variables {μ ν}
 --   ext s hs, rw [restrict_Union_apply_eq_supr],
 -- end
 
-lemma supr_restrict_spanning_sets {μ : measure α} [sigma_finite μ univ] {s : set α}
-  (hs : is_measurable s) :
-  (⨆ i, μ.restrict (spanning_sets μ univ i) s) = μ s :=
-begin
-  convert (restrict_Union_apply_eq_supr (is_measurable_spanning_sets μ univ) _ hs).symm,
-  { simp [Union_spanning_sets] },
-  { exact directed_of_sup (monotone_spanning_sets μ univ) }
-end
-
 /- todo: rename set.disjoint.preimage -> disjoint.preimage -/
 
-lemma measurable.measure_prod_mk_left_finite {μ : measure β} [finite_measure μ] {s : set (α × β)}
-  (hs : is_measurable s) : measurable (λ x, μ (prod.mk x ⁻¹' s)) :=
-begin
-  refine induction_on_inter generate_from_prod.symm is_pi_system_prod _ _ _ _ hs,
-  { simp [measurable_zero] },
-  { rintro _ ⟨s, t, hs, ht, rfl⟩, simp only [mk_preimage_prod_right_eq_if, measure_if],
-    exact measurable_const.indicator hs },
-  { intros t ht h2t,
-    simp_rw [preimage_compl, measure_compl (measurable_prod_mk_left ht) (measure_lt_top μ _)],
-    exact measurable_const.ennreal_sub h2t },
-  { intros f h1f h2f h3f, simp_rw [preimage_Union],
-    have : ∀ b, μ (⋃ i, prod.mk b ⁻¹' f i) = ∑' i, μ (prod.mk b ⁻¹' f i) :=
-      λ b, measure_Union (λ i j hij, disjoint.preimage _ (h1f i j hij))
-        (λ i, measurable_prod_mk_left (h2f i)),
-    simp_rw [this], apply measurable.ennreal_tsum h3f },
-end
-
-lemma measurable.measure_prod_mk_left {μ : measure β} [sigma_finite μ univ] {s : set (α × β)}
-  (hs : is_measurable s) : measurable (λ x, μ (prod.mk x ⁻¹' s)) :=
-begin
-  have : ∀ x, is_measurable (prod.mk x ⁻¹' s) := λ x, measurable_prod_mk_left hs,
-  simp only [← supr_restrict_spanning_sets, this],
-  apply measurable.supr, intro i,
-  haveI : fact _ := measure_spanning_sets_lt_top μ univ i,
-  exact measurable.measure_prod_mk_left_finite hs
-end
-
-lemma measurable.map_prod_mk_left {μ : measure β} [sigma_finite μ univ] :
-  measurable (λ x : α, map (prod.mk x) μ) :=
-begin
-  apply measurable_of_measurable_coe, intros s hs,
-  simp_rw [map_apply measurable_prod_mk_left hs],
-  exact measurable.measure_prod_mk_left hs
-end
-
-/- Is there a way to do this without duplicating? -/
-lemma measurable.measure_prod_mk_right_finite {μ : measure α} [finite_measure μ] {s : set (α × β)}
-  (hs : is_measurable s) : measurable (λ y, μ ((λ x, (x, y)) ⁻¹' s)) :=
-begin
-  refine induction_on_inter generate_from_prod.symm is_pi_system_prod _ _ _ _ hs,
-  { simp [measurable_zero] },
-  { rintro _ ⟨s, t, hs, ht, rfl⟩, simp only [mk_preimage_prod_left_eq_if, measure_if],
-    exact measurable_const.indicator ht },
-  { intros t ht h2t,
-    simp_rw [preimage_compl, measure_compl (measurable_prod_mk_right ht) (measure_lt_top μ _)],
-    exact measurable_const.ennreal_sub h2t },
-  { intros f h1f h2f h3f, simp_rw [preimage_Union],
-    have : ∀ y, μ (⋃ i, (λ x, (x, y)) ⁻¹' f i) = ∑' i, μ ((λ x, (x, y)) ⁻¹' f i) :=
-      λ y, measure_Union (λ i j hij, disjoint.preimage _ (h1f i j hij))
-        (λ i, measurable_prod_mk_right (h2f i)),
-    simp_rw [this], apply measurable.ennreal_tsum h3f },
-end
-
-lemma measurable.measure_prod_mk_right {μ : measure α} [sigma_finite μ univ] {s : set (α × β)}
-  (hs : is_measurable s) : measurable (λ y, μ ((λ x, (x, y)) ⁻¹' s)) :=
-begin
-  have : ∀ y, is_measurable ((λ x, (x, y)) ⁻¹' s) := λ y, measurable_prod_mk_right hs,
-  simp only [← supr_restrict_spanning_sets, this],
-  apply measurable.supr, intro i,
-  haveI : fact _ := measure_spanning_sets_lt_top μ univ i,
-  exact measurable.measure_prod_mk_right_finite hs
-end
-
-lemma measurable.map_prod_mk_right {μ : measure α} [sigma_finite μ univ] :
-  measurable (λ y : β, map (λ x : α, (x, y)) μ) :=
-begin
-  apply measurable_of_measurable_coe, intros s hs,
-  simp_rw [map_apply measurable_prod_mk_right hs],
-  exact measurable.measure_prod_mk_right hs
-end
 
 lemma prod_apply [sigma_finite ν univ] {s : set (α × β)} (hs : is_measurable s) :
   μ.prod ν s = ∫⁻ x, ν (prod.mk x ⁻¹' s) ∂μ :=
@@ -856,6 +905,8 @@ by simp [prod_eq_prod_symm, prod_symm_apply, hs]
 
 end both_sigma_finite
 
+end measure
+open measure
 -- @[elab_as_eliminator]
 -- theorem finset.induction_subsingleton {α : Type*} {p : finset α → Prop} [decidable_eq α]
 --   (h₁ : ∀ s x, s ⊆ {x} → p s)
@@ -866,25 +917,6 @@ end both_sigma_finite
 --   { }
 -- end
 
-lemma range_piecewise {α : Type*} {β : Sort*} (s : set α) (f g : α → β) [∀j, decidable (j ∈ s)] :
-  range (s.piecewise f g) = f '' s ∪ g '' sᶜ :=
-begin
-  ext y, split,
-  { rintro ⟨x, rfl⟩, by_cases h : x ∈ s;[left, right]; use x; simp [h] },
-  { rintro (⟨x, hx, rfl⟩|⟨x, hx, rfl⟩); use x; simp * at * }
-end
-
-lemma diff_diff_comm {α} {s t u : set α} : s \ t \ u = s \ u \ t :=
-by simp_rw [diff_diff, union_comm]
-
--- rename: image_compl_preimage -> image_diff_preimage
-
-lemma image_preimage_eq_iff {α β} {f : α → β} {s : set β} : f '' (f ⁻¹' s) = s ↔ s ⊆ range f :=
-⟨by { rintro h, rw [← h], apply image_subset_range }, image_preimage_eq_of_subset⟩
-
--- todo: rename
-lemma image_compl_preimage' {α β} {f : α → β} {s : set β} : f '' ((f ⁻¹' s)ᶜ) = range f \ s :=
-by rw [compl_eq_univ_diff, image_compl_preimage, image_univ]
 
 section simple_func
 open simple_func finset
@@ -931,6 +963,12 @@ end
 --   (f : simple_func α γ) : P f :=
 -- simple_func.induction h_ind (λ f g hf hg, h_sum f.measurable g.measurable hf hg) f
 
+end simple_func
+end measure_theory
+open measure_theory measure_theory.measure
+section simple_func
+open measure_theory.simple_func
+
 lemma measurable.ennreal_induction {P : (α → ennreal) → Prop}
   (h_ind : ∀ (c : ennreal) ⦃s⦄, is_measurable s → P (indicator s (λ _, c)))
   (h_sum : ∀ ⦃f g⦄, measurable f → measurable g → P f → P g → P (f + g))
@@ -946,7 +984,6 @@ end
 
 end simple_func
 
-
 lemma measurable.ennreal_induction' {P : (α → ennreal) → Prop}
   (h_ind : ∀ ⦃s⦄, is_measurable s → P (indicator s 1))
   (h_sum : ∀ ⦃f g⦄, measurable f → measurable g → P f → P g → P (f + g))
@@ -955,23 +992,22 @@ lemma measurable.ennreal_induction' {P : (α → ennreal) → Prop}
     (hP : ∀ n, P (f n)), P (λ x, ⨆ n, f n x))
   ⦃f : α → ennreal⦄ (hf : measurable f) : P f :=
 begin
-  refine measurable.ennreal_induction _ h_sum h_supr hf,
+  refine hf.ennreal_induction _ h_sum h_supr,
   intros c s hs, convert h_smul c (measurable_one.indicator hs) (h_ind hs),
   ext1 x, simp [indicator]
 end
 
-
 /-- The Lebesgue intergral is measurable. This shows that the integrand of (the right-hand-side of)
   Tonelli's theorem is measurable. -/
-lemma measurable_lintegral_prod_right [sigma_finite ν univ] :
-  ∀ ⦃f : α × β → ennreal⦄ (hf : measurable f), measurable (λ x, ∫⁻ y, f (x, y) ∂ν) :=
+lemma measurable.lintegral_prod_right [sigma_finite ν univ] :
+  ∀ {f : α × β → ennreal} (hf : measurable f), measurable (λ x, ∫⁻ y, f (x, y) ∂ν) :=
 begin
   have m := @measurable_prod_mk_left,
   refine measurable.ennreal_induction _ _ _,
   { intros c s hs, simp only [← indicator_comp_right],
     suffices : measurable (λ x, c * ν (prod.mk x ⁻¹' s)),
     { simpa [lintegral_indicator _ (m hs)] },
-    exact measurable_const.ennreal_mul (measurable.measure_prod_mk_left hs) },
+    exact measurable_const.ennreal_mul hs.measure_prod_mk_left },
   { intros f g hf hg h2f h2g, simp [lintegral_add (hf.comp m) (hg.comp m)], exact h2f.add h2g },
   { intros f hf h2f h3f,
     have := measurable_supr h3f,
@@ -981,8 +1017,8 @@ end
 
 /-- The Lebesgue intergral is measurable This shows that the integrand of (the right-hand-side of)
   the symmetric version of Tonelli's theorem is measurable. -/
-lemma measurable_lintegral_prod_left [sigma_finite μ univ] :
-  ∀ ⦃f : α × β → ennreal⦄ (hf : measurable f), measurable (λ y, ∫⁻ x, f (x, y) ∂μ) :=
+lemma measurable.lintegral_prod_left [sigma_finite μ univ] :
+  ∀ {f : α × β → ennreal} (hf : measurable f), measurable (λ y, ∫⁻ x, f (x, y) ∂μ) :=
 begin
   have m := @measurable_prod_mk_right,
   refine measurable.ennreal_induction _ _ _,
@@ -990,7 +1026,7 @@ begin
       {single_pass := tt, beta := ff},
     suffices : measurable (λ y, c * μ ((λ x, (x, y)) ⁻¹' s)),
     { simpa [function.comp, lintegral_indicator _ (m hs)] },
-    exact measurable_const.ennreal_mul (measurable.measure_prod_mk_right hs) },
+    exact measurable_const.ennreal_mul hs.measure_prod_mk_right },
   { intros f g hf hg h2f h2g, simp [lintegral_add (hf.comp m) (hg.comp m)], exact h2f.add h2g },
   { intros f hf h2f h3f,
     have := measurable_supr h3f,
@@ -998,23 +1034,27 @@ begin
     simpa [lintegral_supr (λ n, (hf n).comp m), this] },
 end
 
+variables {E : Type*} [normed_group E] [second_countable_topology E] [normed_space ℝ E]
+  [complete_space E] [measurable_space E] [borel_space E]
+
+namespace measure_theory
 /-- Tonelli's Theorem: For `ennreal`-valued measurable functions on `α × β`,
   the integral of `f` is equal to the iterated integral. -/
 lemma lintegral_prod [sigma_finite ν univ] :
-  ∀ ⦃f : α × β → ennreal⦄ (hf : measurable f), ∫⁻ z, f z ∂(μ.prod ν) = ∫⁻ x, ∫⁻ y, f (x, y) ∂ν ∂μ :=
+  ∀ (f : α × β → ennreal) (hf : measurable f), ∫⁻ z, f z ∂(μ.prod ν) = ∫⁻ x, ∫⁻ y, f (x, y) ∂ν ∂μ :=
 begin
   have m := @measurable_prod_mk_left,
   refine measurable.ennreal_induction _ _ _,
   { intros c s hs, simp only [← indicator_comp_right],
-    simp [lintegral_indicator, m hs, hs, lintegral_const_mul, measurable.measure_prod_mk_left hs,
+    simp [lintegral_indicator, m hs, hs, lintegral_const_mul, hs.measure_prod_mk_left,
       prod_apply] },
   { intros f g hf hg h2f h2g,
-    simp [lintegral_add, hf.comp m, hg.comp m, h2f, h2g, measurable_lintegral_prod_right, hf, hg] },
+    simp [lintegral_add, hf.comp m, hg.comp m, h2f, h2g, measurable.lintegral_prod_right, hf, hg] },
   { intros f hf h2f h3f,
     have kf : ∀ x n, measurable (λ y, f n (x, y)) := λ x n, (hf n).comp m,
     have k2f : ∀ x, monotone (λ n y, f n (x, y)) := λ x i j hij y, h2f hij (x, y),
     have lf : ∀ n, measurable (λ x, ∫⁻ y, f n (x, y) ∂ν) :=
-      λ n, measurable_lintegral_prod_right (hf n),
+      λ n, measurable.lintegral_prod_right (hf n),
     have l2f : monotone (λ n x, ∫⁻ y, f n (x, y) ∂ν) := λ i j hij x, lintegral_mono (k2f x hij),
     simp only [lintegral_supr hf h2f, lintegral_supr (kf _), k2f, lintegral_supr lf l2f, h3f] },
 end
@@ -1022,21 +1062,20 @@ end
 /-- The symmetric verion of Tonelli's Theorem: For `ennreal`-valued measurable functions on `α × β`,
   the integral of `f` is equal to the iterated integral, in reverse order. -/
 lemma lintegral_prod_symm [sigma_finite ν univ] [sigma_finite μ univ] :
-  ∀ ⦃f : α × β → ennreal⦄ (hf : measurable f), ∫⁻ z, f z ∂(μ.prod ν) = ∫⁻ y, ∫⁻ x, f (x, y) ∂μ ∂ν :=
+  ∀ (f : α × β → ennreal) (hf : measurable f), ∫⁻ z, f z ∂(μ.prod ν) = ∫⁻ y, ∫⁻ x, f (x, y) ∂μ ∂ν :=
 begin
   have m := @measurable_prod_mk_right,
   refine measurable.ennreal_induction _ _ _,
   { intros c s hs, simp only [(show (_, _) = (λ x, (x, _)) _, from rfl), ← indicator_comp_right]
       {single_pass := tt, beta := ff},
-    simp [lintegral_indicator, m hs, hs, lintegral_const_mul, measurable.measure_prod_mk_right hs,
+    simp [lintegral_indicator, m hs, hs, lintegral_const_mul, hs.measure_prod_mk_right,
       prod_apply_symm] },
   { intros f g hf hg h2f h2g,
-    simp [lintegral_add, hf.comp m, hg.comp m, h2f, h2g, measurable_lintegral_prod_left, hf, hg] },
+    simp [lintegral_add, hf.comp m, hg.comp m, h2f, h2g, measurable.lintegral_prod_left, hf, hg] },
   { intros f hf h2f h3f,
     have kf : ∀ y n, measurable (λ x, f n (x, y)) := λ y n, (hf n).comp m,
     have k2f : ∀ y, monotone (λ n x, f n (x, y)) := λ y i j hij x, h2f hij (x, y),
-    have lf : ∀ n, measurable (λ y, ∫⁻ x, f n (x, y) ∂μ) :=
-      λ n, measurable_lintegral_prod_left (hf n),
+    have lf : ∀ n, measurable (λ y, ∫⁻ x, f n (x, y) ∂μ) := λ n, (hf n).lintegral_prod_left,
     have l2f : monotone (λ n y, ∫⁻ x, f n (x, y) ∂μ) := λ i j hij y, lintegral_mono (k2f y hij),
     simp only [lintegral_supr hf h2f, lintegral_supr (kf _), k2f, lintegral_supr lf l2f, h3f] },
 end
@@ -1045,25 +1084,38 @@ end
 lemma lintegral_lintegral [sigma_finite ν univ] ⦃f : α → β → ennreal⦄
   (hf : measurable (λ z : α × β, f z.1 z.2)) :
   ∫⁻ x, ∫⁻ y, f x y ∂ν ∂μ = ∫⁻ z, f z.1 z.2 ∂(μ.prod ν) :=
-(lintegral_prod hf).symm
+(lintegral_prod _ hf).symm
 
-variables {E : Type*} [normed_group E] [second_countable_topology E] [normed_space ℝ E]
-  [complete_space E] [measurable_space E] [borel_space E]
+-- variables {G : Type*} [measurable_space β] [normed_group G]
+
+lemma ae_lt_top {f : α → ennreal} (hf : measurable f)
+  (h2f : ∫⁻ x, f x ∂μ < ⊤) : ∀ᵐ x ∂μ, f x < ⊤ :=
+begin
+  simp_rw [ae_iff, ennreal.not_lt_top], by_contra h, rw [← not_le] at h2f, apply h2f,
+  have : (f ⁻¹' {⊤}).indicator ⊤ ≤ f,
+  { intro x, by_cases hx : x ∈ f ⁻¹' {⊤}; [simpa [hx], simp [hx]] },
+  convert lintegral_mono this,
+  rw [lintegral_indicator _ (hf (is_measurable_singleton ⊤))], simp [ennreal.top_mul, preimage, h]
+end
+
+lemma integrable.prod_left [sigma_finite μ univ] [sigma_finite ν univ] ⦃f : α × β → E⦄
+  (h1f : measurable f) (h2f : integrable f (μ.prod ν)) : ∀ᵐ y ∂ ν, integrable (λ x, f (x, y)) μ :=
+begin
+  refine ae_lt_top h1f.ennnorm.lintegral_prod_left _,
+  simp_rw [← lintegral_prod_symm _ h1f.ennnorm], exact h2f,
+end
+
+lemma integrable.prod_right [sigma_finite ν univ] ⦃f : α × β → E⦄ (h1f : measurable f)
+  (h2f : integrable f (μ.prod ν)) : ∀ᵐ x ∂ μ, integrable (λ y, f (x, y)) ν :=
+begin
+  refine ae_lt_top h1f.ennnorm.lintegral_prod_right _,
+  simp_rw [← lintegral_prod _ h1f.ennnorm], exact h2f
+end
+
+end measure_theory
 
 /- rename `to_fun_of_fun` to `coe_of_fun` (in `l1`) -/
 
-lemma indicator_add_eq_left {f g : α → E} (h : univ ⊆ f ⁻¹' {0} ∪ g ⁻¹' {0}) :
-  (f ⁻¹' {0})ᶜ.indicator (f + g) = f :=
-begin
-  ext x, by_cases hx : x ∈ (f ⁻¹' 0)ᶜ,
-  { have : g x = 0, { simp at hx, specialize h (mem_univ x), simpa [hx] using h },
-    simp [hx, this] },
-  { simp * at * }
-end
-
-lemma indicator_add_eq_right {f g : α → E} (h : univ ⊆ f ⁻¹' {0} ∪ g ⁻¹' {0}) :
-  (g ⁻¹' {0})ᶜ.indicator (f + g) = g :=
-by { rw [union_comm] at h, rw [add_comm, indicator_add_eq_left h] }
 
 lemma integrable_add {f g : α → E} (h : univ ⊆ f ⁻¹' {0} ∪ g ⁻¹' {0})
   (hf : measurable f) (hg : measurable g) :
@@ -1081,7 +1133,7 @@ lemma integrable.induction {P : (α → E) → Prop}
   (h_ind : ∀ (c : E) ⦃s⦄, is_measurable s → μ s < ⊤ → P (s.indicator (λ _, c)))
   (h_sum : ∀ ⦃f g⦄, measurable f → measurable g → integrable f μ → integrable g μ → P f → P g → P (f + g))
   (h_closed : is_closed {f : α →₁[μ] E | P f} )
-  (h_ae : ∀ ⦃f g⦄, f =ᵐ[μ] g → measurable f → integrable f μ → P f → P g) :
+  (h_ae : ∀ ⦃f g⦄, f =ᵐ[μ] g → measurable f → measurable g → integrable f μ → P f → P g) :
   ∀ ⦃f : α → E⦄ (hf : measurable f) (h2f : integrable f μ), P f :=
 begin
   have : ∀ (f : simple_func α E), integrable f μ → P f,
@@ -1092,18 +1144,19 @@ begin
       apply h_ind c hs,
       have := @comp_indicator _ _ _ _ (λ x : E, (nnnorm x : ennreal)) (const α c), dsimp at this,
       simp [integrable, this, lintegral_indicator, hs] at h,
-      exact lt_top_of_mul_lt_top_right h (by simp [hc]) },
+      exact ennreal.lt_top_of_mul_lt_top_right h (by simp [hc]) },
     { intros f g hfg hf hg int_fg, dsimp at int_fg,
       rw [integrable_add hfg f.measurable g.measurable] at int_fg,
       refine h_sum f.measurable g.measurable int_fg.1 int_fg.2 (hf int_fg.1) (hg int_fg.2) } },
   have : ∀ (f : α →₁ₛ[μ] E), P f,
-  { intro f, exact h_ae f.to_simple_func_eq_to_fun f.measurable f.integrable
+  { intro f, exact h_ae f.to_simple_func_eq_to_fun f.measurable (l1.measurable _) f.integrable
       (this f.to_simple_func f.integrable) },
   have : ∀ (f : α →₁[μ] E), P f :=
     λ f, l1.simple_func.dense_range.induction_on f h_closed this,
-  refine λ f hf h2f, h_ae (l1.to_fun_of_fun f hf h2f) (l1.measurable _) (l1.integrable _)
+  exact λ f hf h2f, h_ae (l1.to_fun_of_fun f hf h2f) (l1.measurable _) hf (l1.integrable _)
     (this (l1.of_fun f hf h2f))
 end
+
 
 -- lemma integrable.induction {P : (α → E) → Prop}
 --   (h_ind : ∀ (c : E) ⦃s⦄, is_measurable s → integrable (indicator s (λ _, c)) μ → P (indicator s (λ _, c)))
@@ -1126,11 +1179,30 @@ end
 --   exact h_ae (l1.to_fun_of_fun f hf h2f) (this (l1.of_fun f hf h2f))
 -- end
 
-lemma integral_indicator (f : α → E) {s : set α} (hs : is_measurable s) :
-  ∫ x, s.indicator f x ∂μ = ∫ x in s, f x ∂μ :=
+-- lemma integral_indicator (f : α → E) {s : set α} (hs : is_measurable s) :
+--   ∫ x, s.indicator f x ∂μ = ∫ x in s, f x ∂μ :=
+-- begin
+--   sorry
+-- end
+
+lemma measurable.congr' {f g : α → β} {s : set α} {y : β} (hs : is_measurable s)
+  (h : ∀ x ∈ s, f x = g x) (hg : measurable g) (hf : ∀ x ∉ s, f x = y)
+  : measurable f :=
 begin
-  sorry
+  intros t ht,
+  by_cases hy : y ∈ t,
+  { convert (hg ht).union hs.compl, ext x, by_cases hx : x ∈ s; simp * },
+  { convert (hg ht).inter hs, ext x, by_cases hx : x ∈ s; simp * }
 end
+
+-- lemma measurable_integral_congr_ae {f : α × β → E} {h : α → E}
+--   (h : integrable)
+--    (hg : measurable (λ x, ∫ y, g (x, y) ∂ν)) :
+--     measurable (λ x, ∫ y, f (x, y) ∂ν) :=
+-- begin
+
+-- end
+--
 
 lemma measurable_to_real : measurable ennreal.to_real :=
 begin
@@ -1138,17 +1210,48 @@ begin
 end
 /-- The Bochner intergral is measurable. This shows that the integrand of (the right-hand-side of)
   Fubini's theorem is measurable. -/
-lemma measurable_integral_prod_left [sigma_finite ν univ] :
+lemma measurable.integral_prod_left [sigma_finite ν univ] :
   ∀ ⦃f : α × β → E⦄ (h1f : measurable f) (h2f : integrable f (μ.prod ν)),
     measurable (λ x, ∫ y, f (x, y) ∂ν) :=
 begin
   have m := @measurable_prod_mk_left,
   refine integrable.induction _ _ _ _,
-  { intros c s hs, simp only [← indicator_comp_right],
-    simp [integral_indicator _ (m hs)],
-    refine (measurable_to_real.comp $ measurable.measure_prod_mk_left hs).smul measurable_const },
-  { intros f g hf hg h2f h2g,
-    simp [integral_add (hf.comp m) (hg.comp m)], exact h2f.add h2g },
+  { intros c s hs h,
+    have : measurable (λ (x : α), (ν (prod.mk x ⁻¹' s)).to_real • c) :=
+      (measurable_to_real.comp hs.measure_prod_mk_left).smul measurable_const,
+    simpa [← indicator_comp_right, integral_indicator measurable_const (m hs)] {eta := ff} },
+    /-
+α : Type u_1,
+β : Type u_2,
+_inst_1 : measurable_space α,
+_inst_2 : measurable_space β,
+μ : measure α,
+ν : measure β,
+E : Type u_3,
+_inst_3 : normed_group E,
+_inst_4 : second_countable_topology E,
+_inst_5 : normed_space ℝ E,
+_inst_6 : complete_space E,
+_inst_7 : measurable_space E,
+_inst_8 : borel_space E,
+_inst_9 : sigma_finite ν univ,
+m :
+  ∀ {α : Type u_1} {β : Type u_2} [_inst_1 : measurable_space α] [_inst_2 : measurable_space β] {x : α},
+    measurable (prod.mk x),
+f g : α × β → E,
+hf : measurable f,
+hg : measurable g,
+h2f : integrable f (μ.prod ν),
+h2g : integrable g (μ.prod ν),
+h3f : measurable (λ (x : α), ∫ (y : β), f (x, y) ∂ν),
+h3g : measurable (λ (x : α), ∫ (y : β), g (x, y) ∂ν),
+this : measurable (λ (a : α), ∫ (y : β), f (a, y) ∂ν + ∫ (y : β), g (a, y) ∂ν)
+⊢ measurable (λ (x : α), ∫ (y : β), (f + g) (x, y) ∂ν)
+-/
+
+  { intros f g hf hg h2f h2g h3f h3g, have := h3f.add h3g, dsimp at this,
+    -- refine (h3f.add h3g).congr' _ _ _,
+    ext1 x, apply integral_add (hf.comp m) _ (hg.comp m) _, }
   -- { intros f hf h2f h3f,
   --   have : ∀ x, monotone (λ n y, f n (x, y)) := λ x i j hij y, h2f hij (x, y),
   --   simp [lintegral_supr (λ n, (hf n).comp m), this],
