@@ -69,6 +69,9 @@ hp.1
 lemma not_unit (hp : prime p) : ¬ is_unit p :=
 hp.2.1
 
+lemma ne_one (hp : prime p) : p ≠ 1 :=
+λ h, hp.2.1 (h.symm ▸ is_unit_one)
+
 lemma div_or_div (hp : prime p) {a b : α} (h : p ∣ a * b) :
   p ∣ a ∨ p ∣ b :=
 hp.2.2 a b h
@@ -509,16 +512,8 @@ assume ⟨c, hc⟩, ⟨associates.mk c, by simp [hc]; refl⟩
 theorem mk_le_mk_iff_dvd_iff {a b : α} : associates.mk a ≤ associates.mk b ↔ a ∣ b :=
 iff.intro dvd_of_mk_le_mk mk_le_mk_of_dvd
 
-/-- The relation `prime` on associates is very similar to the familiar definition
-  from a `comm_ring`. A `prime` `p` is not equal to `1` or `0` and if `p ∣ a * b`,
-  then `p ∣ a` or `p ∣ b` -/
-def prime (p : associates α) : Prop := p ≠ 0 ∧ p ≠ 1 ∧ (∀a b, p ≤ a * b → p ≤ a ∨ p ≤ b)
-
-lemma prime.ne_zero {p : associates α} (hp : prime p) : p ≠ 0 :=
-hp.1
-
-lemma prime.ne_one {p : associates α} (hp : prime p) : p ≠ 1 :=
-hp.2.1
+theorem mk_dvd_mk {a b : α} : associates.mk a ∣ associates.mk b ↔ a ∣ b :=
+iff.intro dvd_of_mk_le_mk mk_le_mk_of_dvd
 
 lemma prime.le_or_le {p : associates α} (hp : prime p) {a b : associates α} (h : p ≤ a * b) :
   p ≤ a ∨ p ≤ b :=
@@ -530,14 +525,14 @@ lemma exists_mem_multiset_le_of_prime {s : multiset (associates α)} {p : associ
 multiset.induction_on s (assume ⟨d, eq⟩, (hp.ne_one (mul_eq_one_iff.1 eq.symm).1).elim) $
 assume a s ih h,
   have p ≤ a * s.prod, by simpa using h,
-  match hp.le_or_le this with
+  match prime.le_or_le hp this with
   | or.inl h := ⟨a, multiset.mem_cons_self a s, h⟩
   | or.inr h := let ⟨a, has, h⟩ := ih h in ⟨a, multiset.mem_cons_of_mem has, h⟩
   end
 
 lemma prime_mk (p : α) : prime (associates.mk p) ↔ _root_.prime p :=
 begin
-  rw [associates.prime, _root_.prime, forall_associated],
+  rw [prime, _root_.prime, forall_associated],
   transitivity,
   { apply and_congr, refl,
     apply and_congr, refl,
@@ -546,10 +541,10 @@ begin
   apply and_congr,
   { rw [(≠), mk_eq_zero] },
   apply and_congr,
-  { rw [(≠), ← is_unit_iff_eq_one, is_unit_mk], },
+  { rw [is_unit_mk], },
   apply forall_congr, assume a,
   apply forall_congr, assume b,
-  rw [mk_mul_mk, mk_le_mk_iff_dvd_iff, mk_le_mk_iff_dvd_iff, mk_le_mk_iff_dvd_iff]
+  rw [mk_mul_mk, mk_dvd_mk, mk_dvd_mk, mk_dvd_mk],
 end
 
 end comm_monoid_with_zero
@@ -600,6 +595,13 @@ begin
     simpa [is_unit_mk] using h _ _ this }
 end
 
+theorem irreducible_iff_prime_iff :
+  (∀ a : α, irreducible a ↔ prime a) ↔ (∀ a : (associates α), irreducible a ↔ prime a) :=
+begin
+  rw forall_associated, split;
+  intros h a; have ha := h a; rw irreducible_mk_iff at *; rw prime_mk at *; exact ha,
+end
+
 lemma eq_of_mul_eq_mul_left :
   ∀(a b c : associates α), a ≠ 0 → a * b = a * c → b = c :=
 begin
@@ -609,14 +611,22 @@ begin
   exact quotient.sound' ⟨u, mul_left_cancel' (mt mk_eq_zero.2 ha) hu⟩
 end
 
+lemma eq_of_mul_eq_mul_right :
+  ∀(a b c : associates α), b ≠ 0 → a * b = c * b → a = c :=
+λ a b c bne0, (mul_comm b a) ▸ (mul_comm b c) ▸ (eq_of_mul_eq_mul_left b a c bne0)
+
 lemma le_of_mul_le_mul_left (a b c : associates α) (ha : a ≠ 0) :
   a * b ≤ a * c → b ≤ c
 | ⟨d, hd⟩ := ⟨d, eq_of_mul_eq_mul_left a _ _ ha $ by rwa ← mul_assoc⟩
 
+lemma le_of_mul_le_mul_right (a b c : associates α) (hb : b ≠ 0) :
+  a * b ≤ c * b → a ≤ c :=
+(mul_comm b a) ▸ (mul_comm b c) ▸ (le_of_mul_le_mul_left b a c hb)
+
 lemma one_or_eq_of_le_of_prime :
   ∀(p m : associates α), prime p → m ≤ p → (m = 1 ∨ m = p)
 | _ m ⟨hp0, hp1, h⟩ ⟨d, rfl⟩ :=
-match h m d (le_refl _) with
+match h m d (dvd_refl _) with
 | or.inl h := classical.by_cases (assume : m = 0, by simp [this]) $
   assume : m ≠ 0,
   have m * d ≤ m * 1, by simpa using h,
@@ -628,6 +638,11 @@ match h m d (le_refl _) with
   have d * m ≤ d * 1, by simpa [mul_comm] using h,
   or.inl $ bot_unique $ associates.le_of_mul_le_mul_left d m 1 ‹d ≠ 0› this
 end
+
+instance : comm_cancel_monoid_with_zero (associates α) :=
+{ mul_left_cancel_of_ne_zero := eq_of_mul_eq_mul_left,
+  mul_right_cancel_of_ne_zero := eq_of_mul_eq_mul_right,
+  .. (infer_instance : comm_monoid_with_zero (associates α)) }
 
 end comm_cancel_monoid_with_zero
 

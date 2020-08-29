@@ -19,10 +19,15 @@ satisfies the descending chain condition. -/
 class DCC_dvd (α : Type*) [comm_cancel_monoid_with_zero α] : Prop :=
 (well_founded_dvd_not_unit : well_founded (λ a b : α, a ≠ 0 ∧ ∃ x, ¬is_unit x ∧ b = a * x))
 
+export DCC_dvd (well_founded_dvd_not_unit)
+
+@[priority 100] -- see Note [lower instance priority]
 instance is_noetherian_ring.DCC_dvd [integral_domain α] [is_noetherian_ring α] :
   DCC_dvd α :=
-⟨is_noetherian_ring.well_founded_dvd_not_unit⟩
+⟨by simp only [ideal.span_singleton_lt_span_singleton.symm];
+   exact inv_image.wf (λ a, ideal.span ({a} : set α)) (well_founded_submodule_gt _ _)⟩
 
+@[priority 100] -- see Note [lower instance priority]
 instance polynomial.DCC_dvd [integral_domain α] [DCC_dvd α] : DCC_dvd (polynomial α) :=
 { well_founded_dvd_not_unit := begin
     classical,
@@ -53,9 +58,34 @@ instance polynomial.DCC_dvd [integral_domain α] [DCC_dvd α] : DCC_dvd (polynom
 
 namespace DCC_dvd
 
-variables [comm_cancel_monoid_with_zero α] [DCC_dvd α]
-
+variables [comm_cancel_monoid_with_zero α]
 open associates nat
+
+@[priority 100]
+instance of_DCC_dvd_associates [comm_cancel_monoid_with_zero α]
+  [DCC_dvd (associates α)]: DCC_dvd α :=
+⟨by { refine rel_hom.well_founded (rel_hom.mk associates.mk _) DCC_dvd.well_founded_dvd_not_unit,
+  rintros a b ⟨ane0, ⟨c, ⟨hc, bac⟩⟩⟩,
+  rw bac, split, { contrapose! ane0, exact mk_eq_zero.1 ane0, },
+  use (associates.mk c), split, { rw is_unit_mk, exact hc, },rw mk_mul_mk, }⟩
+
+variables [DCC_dvd α]
+
+@[priority 100]
+instance DCC_dvd_associates : DCC_dvd (associates α) :=
+⟨begin
+  have h : ∀ a : associates α, ∃ b : α, a = associates.mk b,
+  { rw forall_associated, intro a, use a, },
+  let f : associates α → α := λ a, classical.some (h a),
+  have hf : ∀ a, associates.mk (f a) = a := λ a, (classical.some_spec (h a)).symm,
+  refine rel_hom.well_founded { to_fun := f, map_rel' := _ } DCC_dvd.well_founded_dvd_not_unit,
+  rintros a b ⟨h1, ⟨x, ⟨hnu, hx⟩⟩⟩,
+  split, { contrapose! h1, rw [← hf a, h1], refl, },
+  rw [← hf a, ← hf b, ← hf x, mk_mul_mk, mk_eq_mk_iff_associated] at hx,
+  rcases hx with ⟨u, hu⟩, use (f x * ↑u⁻¹), split,
+  { rw [← is_unit_mk, ← mk_mul_mk, hf x], contrapose! hnu, apply is_unit_of_mul_is_unit_left hnu, },
+  rw [← mul_assoc, ← hu, mul_assoc], simp,
+end⟩
 
 theorem well_founded_associates : well_founded ((<) : associates α → associates α → Prop) :=
 begin
@@ -150,10 +180,18 @@ class unique_factorization_monoid (α : Type*) [comm_cancel_monoid_with_zero α]
   Prop :=
 (irreducible_iff_prime : ∀ {a : α}, irreducible a ↔ prime a )
 
+@[priority 100] -- see Note [lower instance priority]
 instance ufm_of_gcd_of_DCC_dvd [nontrivial α] [comm_cancel_monoid_with_zero α]
   [DCC_dvd α] [gcd_monoid α] : unique_factorization_monoid α :=
 { irreducible_iff_prime := λ _, gcd_monoid.irreducible_iff_prime
   .. ‹DCC_dvd α› }
+
+@[priority 100] -- see Note [lower instance priority]
+instance associates.ufm [nontrivial α] [comm_cancel_monoid_with_zero α]
+  [unique_factorization_monoid α] : unique_factorization_monoid (associates α) :=
+{ irreducible_iff_prime := by { rw ← associates.irreducible_iff_prime_iff,
+    apply unique_factorization_monoid.irreducible_iff_prime, }
+  .. (DCC_dvd.DCC_dvd_associates : DCC_dvd (associates α)) }
 
 namespace unique_factorization_monoid
 variables [comm_cancel_monoid_with_zero α] [unique_factorization_monoid α]

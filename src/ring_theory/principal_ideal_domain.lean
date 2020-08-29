@@ -157,26 +157,10 @@ lemma associates_irreducible_iff_prime : ∀{p : associates R}, irreducible p �
 associates.forall_associated.2 $ assume a,
 by rw [associates.irreducible_mk_iff, associates.prime_mk, irreducible_iff_prime]
 
-section
-open_locale classical
-
-/-- `factors a` is a multiset of irreducible elements whose product is `a`, up to units -/
-noncomputable def factors (a : R) : multiset R :=
-if h : a = 0 then ∅ else classical.some
-  (is_noetherian_ring.exists_factors a h)
-
-lemma factors_spec (a : R) (h : a ≠ 0) :
-  (∀b∈factors a, irreducible b) ∧ associated a (factors a).prod :=
-begin
-  unfold factors, rw [dif_neg h],
-  exact classical.some_spec
-    (is_noetherian_ring.exists_factors a h)
-end
-
-/-- The unique factorization domain structure given by the principal ideal domain. -/
+/-- A principal ideal domain has unique factorization -/
+@[priority 100] -- see Note [lower instance priority]
 instance to_unique_factorization_monoid : unique_factorization_monoid R :=
-{ irreducible_iff_prime := λ _, principal_ideal_ring.irreducible_iff_prime }
-
-end
+{ irreducible_iff_prime := λ _, principal_ideal_ring.irreducible_iff_prime
+  .. (is_noetherian_ring.DCC_dvd : DCC_dvd R) }
 
 end principal_ideal_ring
