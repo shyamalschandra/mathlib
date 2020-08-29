@@ -153,9 +153,8 @@ lemma irreducible_iff_prime {p : R} : irreducible p ↔ prime p :=
     (is_maximal_of_irreducible hp).is_prime,
   irreducible_of_prime⟩
 
-lemma associates_irreducible_iff_prime : ∀{p : associates R}, irreducible p ↔ p.prime :=
-associates.forall_associated.2 $ assume a,
-by rw [associates.irreducible_mk_iff, associates.prime_mk, irreducible_iff_prime]
+lemma associates_irreducible_iff_prime : ∀{p : associates R}, irreducible p ↔ prime p :=
+by { rw ← associates.irreducible_iff_prime_iff, apply irreducible_iff_prime, }
 
 /-- A principal ideal domain has unique factorization -/
 @[priority 100] -- see Note [lower instance priority]
