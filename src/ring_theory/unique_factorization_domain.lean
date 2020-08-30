@@ -14,6 +14,8 @@ import ring_theory.noetherian
 variables {α : Type*}
 local infix ` ~ᵤ ` : 50 := associated
 
+section prio
+set_option default_priority 100 -- see Note [default priority]
 /-- This class refers to `comm_cancel_monoid_with_zero`s whose divisibility relation
 satisfies the descending chain condition. -/
 class DCC_dvd (α : Type*) [comm_cancel_monoid_with_zero α] : Prop :=
@@ -21,13 +23,11 @@ class DCC_dvd (α : Type*) [comm_cancel_monoid_with_zero α] : Prop :=
 
 export DCC_dvd (well_founded_dvd_not_unit)
 
-@[priority 100] -- see Note [lower instance priority]
 instance is_noetherian_ring.DCC_dvd [integral_domain α] [is_noetherian_ring α] :
   DCC_dvd α :=
 ⟨by simp only [ideal.span_singleton_lt_span_singleton.symm];
    exact inv_image.wf (λ a, ideal.span ({a} : set α)) (well_founded_submodule_gt _ _)⟩
 
-@[priority 100] -- see Note [lower instance priority]
 instance polynomial.DCC_dvd [integral_domain α] [DCC_dvd α] : DCC_dvd (polynomial α) :=
 { well_founded_dvd_not_unit := begin
     classical,
@@ -55,6 +55,7 @@ instance polynomial.DCC_dvd [integral_domain α] [DCC_dvd α] : DCC_dvd (polynom
           apply lt_add_of_pos_right, apply nat.pos_of_ne_zero, contrapose! h, rw h, refl, }, }
       end }
   end }
+end prio
 
 namespace DCC_dvd
 
@@ -158,6 +159,8 @@ theorem DCC_dvd_iff_well_founded_associates [comm_cancel_monoid_with_zero α] :
   DCC_dvd α ↔ well_founded ((<) : associates α → associates α → Prop) :=
 ⟨by apply DCC_dvd.well_founded_associates, DCC_dvd_of_well_founded_associates⟩
 
+section prio
+set_option default_priority 100 -- see Note [default priority]
 /-- Unique factorization monoids.
 
 These are defined as `comm_cancel_monoid_with_zero`s with the descending chain condition on
@@ -180,18 +183,19 @@ class unique_factorization_monoid (α : Type*) [comm_cancel_monoid_with_zero α]
   Prop :=
 (irreducible_iff_prime : ∀ {a : α}, irreducible a ↔ prime a )
 
-@[priority 100] -- see Note [lower instance priority]
+
 instance ufm_of_gcd_of_DCC_dvd [nontrivial α] [comm_cancel_monoid_with_zero α]
   [DCC_dvd α] [gcd_monoid α] : unique_factorization_monoid α :=
 { irreducible_iff_prime := λ _, gcd_monoid.irreducible_iff_prime
   .. ‹DCC_dvd α› }
 
-@[priority 100] -- see Note [lower instance priority]
 instance associates.ufm [nontrivial α] [comm_cancel_monoid_with_zero α]
   [unique_factorization_monoid α] : unique_factorization_monoid (associates α) :=
 { irreducible_iff_prime := by { rw ← associates.irreducible_iff_prime_iff,
     apply unique_factorization_monoid.irreducible_iff_prime, }
   .. (DCC_dvd.DCC_dvd_associates : DCC_dvd (associates α)) }
+
+end prio
 
 namespace unique_factorization_monoid
 variables [comm_cancel_monoid_with_zero α] [unique_factorization_monoid α]
@@ -389,12 +393,13 @@ variables [comm_cancel_monoid_with_zero α] [decidable_eq α] [nontrivial α] [n
   [unique_factorization_monoid α]
 
 /-- Noncomputably determines the multiset of prime factors -/
-noncomputable def factors (a : α) : multiset α := if h : a = 0 then 0 else
+noncomputable def factors (a : α) : multiset α := if h : a = 0 then 0 :: 0 else
 multiset.map normalize $ classical.some (unique_factorization_monoid.exists_prime_factors a h)
 
-theorem factors_prod {a : α} (ane0 : a ≠ 0) : associated (factors a).prod a :=
+theorem factors_prod (a : α) : associated (factors a).prod a :=
 begin
-  rw [factors, dif_neg ane0],
+  rw [factors],
+  by_cases ane0 : a = 0, {simp[ane0]}, rw [dif_neg ane0],
   transitivity, swap,
   { exact (classical.some_spec (unique_factorization_monoid.exists_prime_factors a ane0)).2.symm },
   { rw [← associates.mk_eq_mk_iff_associated, ← associates.prod_mk, ← associates.prod_mk,
@@ -403,17 +408,16 @@ begin
     rw [function.comp_apply, associates.mk_eq_mk_iff_associated], apply normalize_associated },
 end
 
-theorem prime_factors {a : α} : ∀ (x : α), x ∈ factors a → prime x :=
+theorem prime_factors {a : α} (ane0 : a ≠ 0) : ∀ (x : α), x ∈ factors a → prime x :=
 begin
-  rw [factors],
-  by_cases a = 0, {simp [h]}, rw dif_neg h,
+  rw [factors, dif_neg ane0],
   intros x hx, rcases multiset.mem_map.1 hx with ⟨y, ⟨hy, rfl⟩⟩,
   rw prime_iff_of_associated (normalize_associated),
-  exact (classical.some_spec (unique_factorization_monoid.exists_prime_factors a h)).1 y hy,
+  exact (classical.some_spec (unique_factorization_monoid.exists_prime_factors a ane0)).1 y hy,
 end
 
-theorem irreducible_factors {a : α} : ∀ (x : α), x ∈ factors a → irreducible x :=
-λ x h, irreducible_of_prime (prime_factors x h)
+theorem irreducible_factors {a : α} (ane0 : a ≠ 0) : ∀ (x : α), x ∈ factors a → irreducible x :=
+λ x h, irreducible_of_prime (prime_factors ane0 x h)
 
 theorem normalize_factors {a : α} : ∀ (x : α), x ∈ factors a → normalize x = x :=
 begin
@@ -426,7 +430,7 @@ end
 lemma factors_irreducible {a : α} (ha : irreducible a) :
   factors a = normalize a :: 0 :=
 begin
-  cases prime_factors_irreducible ha ⟨prime_factors,(factors_prod ha.ne_zero).symm⟩ with p hp,
+  cases prime_factors_irreducible ha ⟨prime_factors ha.ne_zero, factors_prod.symm⟩ with p hp,
   convert hp.2, rw [← normalize_factors p, normalize_eq_normalize_iff, dvd_dvd_iff_associated],
   {apply hp.1}, rw hp.2, simp,
 end
@@ -438,15 +442,21 @@ have hb0 : b ≠ 0, from λ hb0, by simp * at *,
 have multiset.rel associated (p :: factors b) (factors a),
   from unique
     (λ x hx, (multiset.mem_cons.1 hx).elim (λ h, h.symm ▸ hp)
-      (irreducible_factors _))
-    (irreducible_factors)
-    (associated.symm $ calc multiset.prod (factors a) ~ᵤ a : factors_prod ha0
+      (irreducible_factors hb0 _))
+    (irreducible_factors ha0)
+    (associated.symm $ calc multiset.prod (factors a) ~ᵤ a : factors_prod a
       ... = p * b : hb
       ... ~ᵤ multiset.prod (p :: factors b) :
         by rw multiset.prod_cons; exact associated_mul_mul
           (associated.refl _)
-          (associated.symm (factors_prod hb0))),
+          (associated.symm (factors_prod _))),
 multiset.exists_mem_of_rel_of_mem this (by simp)
+
+noncomputable instance gcd_monoid : gcd_monoid α :=
+{ gcd := λ a b, (factors a ⊓ factors b).prod,
+  lcm := λ a b, (factors a ⊔ factors b).prod,
+  dvd_gcd := λ a b c ac ab, by { rw ← factors_prod, apply multiset.prod_dvd_prod, },
+  .. (infer_instance : normalization_monoid α)}
 
 end unique_factorization_monoid
 
