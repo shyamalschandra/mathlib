@@ -115,12 +115,13 @@ lemma Inter_set_of {ι α} (P : ι → α → Prop) :
   (⋂ (i : ι), {x : α | P i x }) = {x : α | ∀ (i : ι), P i x} :=
 by { ext, simp }
 
+-- done above (except accumulate)
+
 lemma range_subset_singleton {ι α} {f : ι → α} {x : α} : range f ⊆ {x} ↔ f = λ _, x :=
 by simp [range_subset_iff, funext_iff, mem_singleton]
 
 lemma subset_of_eq {α} {s t : set α} : s = t → s ⊆ t :=
 by { rintro rfl, exact subset.rfl }
-
 
 lemma diff_diff_comm {α} {s t u : set α} : s \ t \ u = s \ u \ t :=
 by simp_rw [diff_diff, union_comm]
@@ -180,6 +181,7 @@ begin
     simp [hx, this] },
   { simp * at * }
 end
+-- done above
 
 end set
 open set
@@ -187,10 +189,9 @@ open set
 section
 variables {α β γ : Type*}
 
-
+-- done
 @[simp, to_additive] lemma const_one [has_one β] : const α (1 : β) = 1 :=
 rfl
-
 
 @[simp] lemma const_def {y : β} : (λ x : α, y) = const α y := rfl
 
