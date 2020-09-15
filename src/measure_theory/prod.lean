@@ -183,6 +183,10 @@ begin
 end
 -- done above
 
+-- lemma if_eq_piecewise {α : Type*} {β : α → Sort*} (p : α → Prop) (f g : Πi, β i) [decidable_pred p] :
+--   (λ x, if p x then f x else g x) = {x | p x}.piecewise f g :=
+-- rfl
+
 end set
 open set
 
@@ -325,6 +329,8 @@ end ennreal
 section tsum
 
 open filter
+
+
 variables {ι α : Type*} {β : α → Type*} [∀ x, add_comm_monoid (β x)]
   [∀ x, topological_space (β x)] {f : ι → ∀ x, β x}
 
@@ -416,6 +422,21 @@ lemma measurable.ennreal_tsum {ι α} [encodable ι] [measurable_space α]
   {f : ι → α → ennreal} (h : ∀ i, measurable (f i)) : measurable (λ x, ∑' i, f i x) :=
 by { simp_rw [ennreal.tsum_eq_supr_sum], apply measurable.supr, exact measurable.sum f h }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 section complete_lattice
 
 variables {ι : Sort*} {α : Type*} {x : α} [complete_lattice α]
@@ -426,8 +447,6 @@ lemma le_infi_const : x ≤ (⨅ (h : ι), x) :=
 le_infi (λ _, le_rfl)
 
 end complete_lattice
-
-
 
 
 namespace measure_theory
@@ -540,6 +559,15 @@ measurable_pi_lambda _ $ λ x, measurable_prod_mk_right
 lemma measurable_prod {f : α → β × γ} : measurable f ↔
   measurable (λa, (f a).1) ∧ measurable (λa, (f a).2) :=
 ⟨λ hf, ⟨measurable_fst.comp hf, measurable_snd.comp hf⟩, λ h, measurable.prod h.1 h.2⟩
+
+
+
+
+
+
+
+
+
 
 end measurable
 
@@ -724,10 +752,35 @@ end
 
 end measure
 end measure_theory
+open measure_theory
+
+
+
+
+section measurable
+
+
+variables {α β γ: Type*} [measurable_space α] [measurable_space β] [measurable_space γ]
+
+lemma measurable.of_uncurry_left {f : α → β → γ} (hf : measurable (uncurry f)) {x : α} :
+  measurable (f x) :=
+hf.comp measurable_prod_mk_left
+
+lemma measurable.of_uncurry_right {f : α → β → γ} (hf : measurable (uncurry f)) {y : β} :
+  measurable (λ x, f x y) :=
+hf.comp measurable_prod_mk_right
+
+end measurable
+
+
+
+
+
+
 
 variables {α β : Type*} [measurable_space α] [measurable_space β]
   {μ : measure_theory.measure α} {ν : measure_theory.measure β}
-open measure_theory measure_theory.measure
+open measure_theory.measure
 
 lemma is_measurable.measure_prod_mk_left_finite [finite_measure ν] {s : set (α × β)}
   (hs : is_measurable s) : measurable (λ x, ν (prod.mk x ⁻¹' s)) :=
@@ -1016,6 +1069,10 @@ begin
     simpa [lintegral_supr (λ n, (hf n).comp m), this] }
 end
 
+lemma measurable.lintegral_prod_right' [sigma_finite ν univ] {f : α → β → ennreal}
+  (hf : measurable (uncurry f)) : measurable (λ x, ∫⁻ y, f x y ∂ν) :=
+hf.lintegral_prod_right
+
 /-- The Lebesgue intergral is measurable This shows that the integrand of (the right-hand-side of)
   the symmetric version of Tonelli's theorem is measurable. -/
 lemma measurable.lintegral_prod_left [sigma_finite μ univ] :
@@ -1083,7 +1140,7 @@ end
 
 /-- The reversed version of Tonelli's Theorem. -/
 lemma lintegral_lintegral [sigma_finite ν univ] ⦃f : α → β → ennreal⦄
-  (hf : measurable (λ z : α × β, f z.1 z.2)) :
+  (hf : measurable (uncurry f)) :
   ∫⁻ x, ∫⁻ y, f x y ∂ν ∂μ = ∫⁻ z, f z.1 z.2 ∂(μ.prod ν) :=
 (lintegral_prod _ hf).symm
 
@@ -1209,50 +1266,93 @@ lemma measurable_to_real : measurable ennreal.to_real :=
 begin
   sorry
 end
-/-- The Bochner intergral is measurable. This shows that the integrand of (the right-hand-side of)
-  Fubini's theorem is measurable. -/
-lemma measurable.integral_prod_left [sigma_finite ν univ] :
-  ∀ ⦃f : α × β → E⦄ (h1f : measurable f) (h2f : integrable f (μ.prod ν)),
-    measurable (λ x, ∫ y, f (x, y) ∂ν) :=
+
+lemma set_of_compl {p : α → Prop} : {x | p x}ᶜ = {x | ¬ p x } := rfl
+
+lemma is_closed_le_prod [topological_space α] [partial_order α] [t : order_closed_topology α] [second_countable_topology α] : is_closed {p : α × α | p.1 ≤ p.2} :=
+t.is_closed_le'
+
+lemma is_open_lt_prod [topological_space α] [linear_order α] [t : order_closed_topology α] [second_countable_topology α] : is_open {p : α × α | p.1 < p.2} :=
+by { simp_rw [← is_closed_compl_iff, set_of_compl, not_lt],
+     exact is_closed_le continuous_snd continuous_fst }
+
+lemma is_measurable_lt' [topological_space α] [opens_measurable_space α] [linear_order α] [order_closed_topology α] [second_countable_topology α] : is_measurable {p : α × α | p.1 < p.2} :=
+is_open_lt_prod.is_measurable
+
+lemma is_measurable_lt [topological_space α] [opens_measurable_space α] [linear_order α] [order_closed_topology α] [second_countable_topology α] {f g : β → α} (hf : measurable f) (hg : measurable g) :
+  is_measurable {a | f a < g a} :=
+hf.prod_mk hg is_measurable_lt'
+
+lemma is_measurable.integrable [sigma_finite ν univ] ⦃f : α → β → E⦄ (hf : measurable (uncurry f)) :
+  is_measurable { x | integrable (f x) ν } :=
 begin
-  have m := @measurable_prod_mk_left,
-  refine integrable.induction _ _ _ _,
-  { intros c s hs h,
-    have : measurable (λ (x : α), (ν (prod.mk x ⁻¹' s)).to_real • c) :=
-      (measurable_to_real.comp hs.measure_prod_mk_left).smul measurable_const,
-    simpa [← indicator_comp_right, integral_indicator measurable_const (m hs)] {eta := ff} },
-    /-
-α : Type u_1,
-β : Type u_2,
-_inst_1 : measurable_space α,
-_inst_2 : measurable_space β,
-μ : measure α,
-ν : measure β,
-E : Type u_3,
-_inst_3 : normed_group E,
-_inst_4 : second_countable_topology E,
-_inst_5 : normed_space ℝ E,
-_inst_6 : complete_space E,
-_inst_7 : measurable_space E,
-_inst_8 : borel_space E,
-_inst_9 : sigma_finite ν univ,
-m :
-  ∀ {α : Type u_1} {β : Type u_2} [_inst_1 : measurable_space α] [_inst_2 : measurable_space β] {x : α},
-    measurable (prod.mk x),
-f g : α × β → E,
-hf : measurable f,
-hg : measurable g,
-h2f : integrable f (μ.prod ν),
-h2g : integrable g (μ.prod ν),
-h3f : measurable (λ (x : α), ∫ (y : β), f (x, y) ∂ν),
-h3g : measurable (λ (x : α), ∫ (y : β), g (x, y) ∂ν),
-this : measurable (λ (a : α), ∫ (y : β), f (a, y) ∂ν + ∫ (y : β), g (a, y) ∂ν)
-⊢ measurable (λ (x : α), ∫ (y : β), (f + g) (x, y) ∂ν)
+  refine is_measurable_lt (measurable.lintegral_prod_right' _) measurable_const,
+  exact hf.ennnorm
+end
+
+open filter
+#print Pi.topological_space
+
+lemma measurable_lim_metric [metric_space β] {f : ℕ → α → β} {g : α → β}
+  (hf : ∀ i, measurable (f i)) (lim : tendsto f at_top (nhds g)) /- is this pointwise convergence? -/
+  : measurable g :=
+begin
+
+end
+
+/-
+lemma borel_measurable_LIMSEQ_metric:
+  fixes f :: "nat ⇒ 'a ⇒ 'b :: metric_space"
+  assumes [measurable]: "⋀i. f i ∈ borel_measurable M"
+  assumes lim: "⋀x. x ∈ space M ⟹ (λi. f i x) ⇢ g x"
+  shows "g ∈ borel_measurable M"
+  unfolding borel_eq_closed
+proof (safe intro!: measurable_measure_of)
+  fix A :: "'b set" assume "closed A"
+
+  have [measurable]: "(λx. infdist (g x) A) ∈ borel_measurable M"
+  proof (rule borel_measurable_LIMSEQ_real)
+    show "⋀x. x ∈ space M ⟹ (λi. infdist (f i x) A) ⇢ infdist (g x) A"
+      by (intro tendsto_infdist lim)
+    show "⋀i. (λx. infdist (f i x) A) ∈ borel_measurable M"
+      by (intro borel_measurable_continuous_on[where f="λx. infdist x A"]
+        continuous_at_imp_continuous_on ballI continuous_infdist continuous_ident) auto
+  qed
+
+  show "g -` A ∩ space M ∈ sets M"
+  proof cases
+    assume "A ≠ {}"
+    then have "⋀x. infdist x A = 0 ⟷ x ∈ A"
+      using ‹closed A› by (simp add: in_closed_iff_infdist_zero)
+    then have "g -` A ∩ space M = {x∈space M. infdist (g x) A = 0}"
+      by auto
+    also have "… ∈ sets M"
+      by measurable
+    finally show ?thesis .
+  qed simp
+qed auto
 -/
 
-  { intros f g hf hg h2f h2g h3f h3g, have := h3f.add h3g, dsimp at this,
-    -- refine (h3f.add h3g).congr' _ _ _,
-    ext1 x, apply integral_add (hf.comp m) _ (hg.comp m) _, }
+
+/-- The Bochner intergral is measurable. This shows that the integrand of (the right-hand-side of)
+  Fubini's theorem is measurable. -/
+lemma measurable.integral_prod_left [sigma_finite ν univ] ⦃f : α → β → E⦄ (hf : measurable (uncurry f)) :
+    measurable (λ x, ∫ y, f x y ∂ν) :=
+begin
+  have := hf.of_uncurry_left,
+  dsimp [integral], simp [hf.of_uncurry_left],
+
+  refine measurable.piecewise (is_measurable.integrable hf) _ _,
+
+  -- have m := @measurable_prod_mk_left,
+  -- refine integrable.induction _ _ _ _,
+  -- { intros c s hs h,
+  --   have : measurable (λ (x : α), (ν (prod.mk x ⁻¹' s)).to_real • c) :=
+  --     (measurable_to_real.comp hs.measure_prod_mk_left).smul measurable_const,
+  --   simpa [← indicator_comp_right, integral_indicator measurable_const (m hs)] {eta := ff} },
+  -- { intros f g hf hg h2f h2g h3f h3g, have := h3f.add h3g, dsimp at this,
+  --   -- refine (h3f.add h3g).congr' _ _ _,
+  --   ext1 x, apply integral_add (hf.comp m) _ (hg.comp m) _, }
   -- { intros f hf h2f h3f,
   --   have : ∀ x, monotone (λ n y, f n (x, y)) := λ x i j hij y, h2f hij (x, y),
   --   simp [lintegral_supr (λ n, (hf n).comp m), this],
@@ -1262,6 +1362,11 @@ this : measurable (λ (a : α), ∫ (y : β), f (a, y) ∂ν + ∫ (y : β), g (
   -- { },
   -- { }
 end
+
+
+lemma integrable_prod_iff [sigma_finite ν univ] ⦃f : α × β → E⦄ (h1f : measurable f) :
+  (∀ᵐ x ∂ μ, integrable (λ y, f (x, y)) ν) ∧ integrable (λ x, ∫ y, f (x, y) ∂ν) μ ↔ integrable f (μ.prod ν) :=
+sorry
 
 /-- Fubini's Theorem: For integrable functions on `α × β`,
   the Bochner integral of `f` is equal to the iterated Bochner integral. -/
