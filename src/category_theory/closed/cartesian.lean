@@ -5,7 +5,7 @@ Authors: Bhavik Mehta, Edward Ayers, Thomas Read
 -/
 
 import category_theory.limits.shapes.finite_products
-import category_theory.limits.shapes.constructions.preserve_binary_products
+import category_theory.limits.preserves.binary_products
 import category_theory.closed.monoidal
 import category_theory.monoidal.of_has_finite_products
 import category_theory.adjunction
@@ -341,8 +341,8 @@ def cartesian_closed_of_equiv (e : C ≌ D) [h : cartesian_closed C] : cartesian
       { apply as_iso (prod_comparison e.inverse X (e.functor.obj Y)) ≪≫ _,
         exact ⟨limits.prod.map (𝟙 _) (e.unit_inv.app _),
               limits.prod.map (𝟙 _) (e.unit.app _),
-              by simpa [←prod_map_id_comp, prod_map_id_id],
-              by simpa [←prod_map_id_comp, prod_map_id_id]⟩, },
+              by { simpa only [←prod_map_id_comp, iso.inv_hom_id_app] using prod_map_id_id _ _ },
+              by { simpa only [←prod_map_id_comp, iso.hom_inv_id_app] using prod_map_id_id _ _ }⟩ },
       { intros Y Z g,
         simp only [prod_comparison, inv_prod_comparison_map_fst, inv_prod_comparison_map_snd,
           prod.lift_map, functor.comp_map, prod_functor_obj_map, assoc, comp_id,
