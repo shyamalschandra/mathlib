@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Floris van Doorn
 -/
 import measure_theory.giry_monad
-import measure_theory.bochner_integration
 import measure_theory.set_integral
 
 /-!
@@ -1292,12 +1291,12 @@ end
 
 open filter
 #print Pi.topological_space
-
+#print Pi.tendsto
 lemma measurable_lim_metric [metric_space β] {f : ℕ → α → β} {g : α → β}
-  (hf : ∀ i, measurable (f i)) (lim : tendsto f at_top (nhds g)) /- is this pointwise convergence? -/
-  : measurable g :=
+  (hf : ∀ i, measurable (f i)) (lim : tendsto f at_top (nhds g)) : measurable g :=
 begin
 
+  -- simp_rw [nhds_pi, filter.tendsto_infi, filter.tendsto_comap_iff, function.comp] at lim,
 end
 
 /-
