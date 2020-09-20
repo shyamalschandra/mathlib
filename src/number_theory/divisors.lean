@@ -91,16 +91,34 @@ def sum_proper_divisors : ℕ :=
 ∑ i in proper_divisors n, i
 
 @[simp]
-lemma divisors_0 : divisors 0 = ∅ := by { ext, simp }
+lemma divisors_zero : divisors 0 = ∅ := by { ext, simp }
 
 @[simp]
-lemma divisors_antidiagonal_0 : divisors_antidiagonal 0 = ∅ := by { ext, simp }
+lemma divisors_antidiagonal_zero : divisors_antidiagonal 0 = ∅ := by { ext, simp }
+
+@[simp]
+lemma divisors_antidiagonal_one : divisors_antidiagonal 1 = {(1,1)} :=
+by { ext, simp [nat.mul_eq_one_iff, prod.ext_iff], }
 
 lemma swap_mem_divisors_antidiagonal {n : ℕ} {x : ℕ × ℕ} (h : x ∈ divisors_antidiagonal n) :
   x.swap ∈ divisors_antidiagonal n :=
 begin
   rw [mem_divisors_antidiagonal, mul_comm] at h,
   simpa,
+end
+
+lemma fst_mem_divisors_of_mem_antidiagonal {n : ℕ} {x : ℕ × ℕ} (h : x ∈ divisors_antidiagonal n) :
+  x.fst ∈ divisors n :=
+begin
+  rw mem_divisors_antidiagonal at h,
+  simp [dvd.intro _ h.1, h.2],
+end
+
+lemma snd_mem_divisors_of_mem_antidiagonal {n : ℕ} {x : ℕ × ℕ} (h : x ∈ divisors_antidiagonal n) :
+  x.snd ∈ divisors n :=
+begin
+  rw mem_divisors_antidiagonal at h,
+  simp [dvd.intro_left _ h.1, h.2],
 end
 
 @[simp]
