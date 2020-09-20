@@ -150,3 +150,5 @@ begin
     rw finset.sum_insert, rw add_comm,
     apply not_proper_self, omega, }
 end
+
+end definitions
