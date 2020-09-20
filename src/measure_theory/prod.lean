@@ -86,6 +86,12 @@ end
 --   (λ x, if p x then f x else g x) = {x | p x}.piecewise f g :=
 -- rfl
 
+variables {α β : Type*} {f : α → β} {s : set α}
+
+theorem forall_image_iff {p : β → Prop} : (∀ y ∈ f '' s, p y) ↔ (∀ x ∈ s, p (f x)) :=
+by { simp only [mem_image, exists_imp_distrib, @forall_swap β, and_imp, imp.swap],
+  apply forall_congr, intro x, simp only [forall_eq'] }
+
 end set
 open set
 
@@ -138,13 +144,36 @@ namespace ennreal
 
 end ennreal
 
-section filter
+namespace filter
 
 open filter
+
+section
+variables {α β ι : Type*} [complete_lattice α]
+
+theorem has_basis.Liminf_eq_supr_Inf {p : ι → Prop} {s : ι → set α} {f : filter α}
+  (h : f.has_basis p s) : f.Liminf = ⨆ i (hi : p i), Inf (s i) :=
+@has_basis.Limsup_eq_infi_Sup (order_dual α) _ _ _ _ _ h
+
+theorem has_basis.limsup_eq_infi_supr {p : ι → Prop} {s : ι → set β} {f : filter β} {u : β → α}
+  (h : f.has_basis p s) : f.limsup u = ⨅ i (hi : p i), ⨆ a ∈ s i, u a :=
+(h.map u).Limsup_eq_infi_Sup.trans $ by simp only [Sup_image, id]
+
+theorem has_basis.liminf_eq_supr_infi {p : ι → Prop} {s : ι → set β} {f : filter β} {u : β → α}
+  (h : f.has_basis p s) : f.liminf u = ⨆ i (hi : p i), ⨅ a ∈ s i, u a :=
+@has_basis.limsup_eq_infi_supr (order_dual α) _ _ _ _ _ _ _ h
+
+end
+
+end filter
+
+section filter
+open filter
+
 variables {α β : Type*} [topological_space α] [conditionally_complete_linear_order α] [order_topology α]
 open_locale topological_space
 
--- todo: replace
+-- already moved
 /-- If a function has a limit, then its limsup coincides with its limit. -/
 theorem filter.tendsto.limsup_eq' {f : filter β} {u : β → α} {a : α} [ne_bot f]
   (h : tendsto u f (𝓝 a)) : limsup f u = a :=
@@ -227,9 +256,6 @@ begin
   simp_rw [← compl_Ici, preimage_compl, is_measurable.compl_iff],
   assumption
 end
-#print is_measurable.bInter
-
--- #print is_rational
 
 -- section
 -- open filter
@@ -316,7 +342,7 @@ variables {α : Type*} [metric_space α] {x : α} {s : set α}
 def inf_nndist (x : α) (s : set α) : ℝ≥0 := ennreal.to_nnreal (inf_edist x s)
 @[simp] lemma coe_inf_nndist : (inf_nndist x s : ℝ) = inf_dist x s := rfl
 
-@[simp] lemma inf_nndist_eq_zero : (inf_nndist x s : ℝ) = inf_dist x s := rfl
+-- @[simp] lemma inf_nndist_eq_zero : (inf_nndist x s : ℝ) = inf_dist x s := rfl
 
 /-- The minimal distance to a set (as `nnreal`) is Lipschitz in point with constant 1 -/
 lemma lipschitz_inf_nndist_pt (s : set α) : lipschitz_with 1 (λx, inf_nndist x s) :=
@@ -940,7 +966,7 @@ end
 
 section
 
-variables {δ : Type*} [measurable_space δ] [measurable_space α] [topological_space α] [borel_space α]
+variables {δ : Type*} [measurable_space δ] [topological_space α] [borel_space α]
 
 -- use in integrable_add
 @[to_additive]
@@ -1092,13 +1118,14 @@ end
 -- end
 --
 
-lemma measurable_to_real : measurable ennreal.to_real :=
-begin
-  sorry
-end
+lemma nnreal.measurable_coe : measurable (coe : nnreal → ℝ) :=
+nnreal.continuous_coe.measurable
+
+lemma measurable_ennreal_to_real : measurable ennreal.to_real :=
+ennreal.measurable_of_measurable_nnreal nnreal.measurable_coe
 
 lemma measurable.to_real {f : α → ennreal} (hf : measurable f) : measurable (λ x, ennreal.to_real (f x)) :=
-measurable_to_real.comp hf
+measurable_ennreal_to_real.comp hf
 
 lemma set_of_compl {p : α → Prop} : {x | p x}ᶜ = {x | ¬ p x } := rfl
 
@@ -1125,8 +1152,6 @@ begin
 end
 
 open filter
-#print Pi.topological_space
-#print metric.inf_dist
 
 lemma measurable_of_is_open [topological_space β] [borel_space β] {f : α → β}
   (hf : ∀ s, is_open s → is_measurable (f ⁻¹' s)) : measurable f :=
@@ -1177,23 +1202,75 @@ section
 variables {δ : Type*} [topological_space α] [borel_space α] [measurable_space δ]
 
 lemma measurable_bsupr' [complete_linear_order α] [order_topology α] [second_countable_topology α]
-  {ι} (s : set ι) (f : ι → δ → α) (hf : ∀ i, measurable (f i)) (hs : countable s) :
+  {ι} (s : set ι) (f : ι → δ → α) (hs : countable s) (hf : ∀ i, measurable (f i)) :
   measurable (λ b, ⨆ i ∈ s, f i b) :=
 by { haveI : encodable s := hs.to_encodable, simp only [supr_subtype'],
      exact measurable_supr (λ i, hf i) }
 
 lemma measurable_binfi' [complete_linear_order α] [order_topology α] [second_countable_topology α]
-  {ι} (s : set ι) {f : ι → δ → α} (hf : ∀ i, measurable (f i)) (hs : countable s) :
+  {ι} (s : set ι) (f : ι → δ → α) (hs : countable s) (hf : ∀ i, measurable (f i)) :
   measurable (λ b, ⨅ i ∈ s, f i b) :=
 by { haveI : encodable s := hs.to_encodable, simp only [infi_subtype'],
      exact measurable_infi (λ i, hf i) }
 
 end
 
-lemma measurable_liminf {ι} [complete_lattice β] {f : ι → α → β} {u : filter ι}
-  (hf : ∀ i, measurable (f i)) :
+lemma measurable_of_is_measurable_lt [linear_order β] [topological_space β] [second_countable_topology β]
+  [order_topology β] [borel_space β] {f : α → β} (hf : ∀ y, is_measurable {x | f x < y}) : measurable f :=
+begin
+  rw [‹borel_space β›.measurable_eq, borel_eq_generate_Iio],
+  apply measurable_generate_from, rintro _ ⟨y, rfl⟩, exact hf y
+end
+
+lemma measurable_of_is_measurable_le [linear_order β] [topological_space β] [second_countable_topology β]
+  [order_topology β] [borel_space β] {f : α → β} (hf : ∀ y, is_measurable {x | f x ≤ y}) : measurable f :=
+begin
+  rw [‹borel_space β›.measurable_eq, borel_eq_generate_Ioi],
+  apply measurable_generate_from, rintro _ ⟨y, rfl⟩, convert (hf y).compl, simp [set_of_compl, Ioi]
+end
+
+lemma measurable_cSup {ι} [conditionally_complete_linear_order β] [topological_space β] [second_countable_topology β] [order_topology β] [borel_space β] {f : ι → α → β} {s : set ι} (hs : s.countable)
+  (hf : ∀ i, measurable (f i)) (bdd : ∀ x, bdd_above ((λ i, f i x) '' s)) :
+  measurable (λ x, Sup ((λ i, f i x) '' s)) :=
+begin
+  cases eq_empty_or_nonempty s with h2s h2s,
+  { simp [h2s, measurable_const] },
+  { apply measurable_of_is_measurable_le, intro y,
+    have : is_measurable {x : α | ∀ (i : ι), i ∈ s → f i x ≤ y},
+    { simp_rw set_of_forall,
+      exact is_measurable.bInter hs (λ i hi, is_measurable_le (hf i) measurable_const) },
+    convert this, ext x, simp_rw [cSup_le_iff (bdd x) (h2s.image _), forall_image_iff] }
+end
+
+lemma measurable_liminf' {ι ι'} [complete_linear_order β] [topological_space β] [second_countable_topology β]
+  [order_topology β] [borel_space β] {f : ι → α → β} {u : filter ι} (hf : ∀ i, measurable (f i))
+  {p : ι' → Prop} {s : ι' → set ι} (hu : u.has_countable_basis p s) (hs : ∀ i, (s i).countable) :
   measurable (λ x, liminf u (λ i, f i x)) :=
-by { simp_rw [liminf, Liminf, Sup_eq_supr], sorry } -- conditions needed?
+begin
+  simp_rw [hu.to_has_basis.liminf_eq_supr_infi],
+  refine measurable_bsupr' _ _ hu.countable _,
+  exact λ i, measurable_binfi' _ _ (hs i) hf
+end
+
+lemma measurable_limsup' {ι ι'} [complete_linear_order β] [topological_space β] [second_countable_topology β]
+  [order_topology β] [borel_space β] {f : ι → α → β} {u : filter ι} (hf : ∀ i, measurable (f i))
+  {p : ι' → Prop} {s : ι' → set ι} (hu : u.has_countable_basis p s) (hs : ∀ i, (s i).countable) :
+  measurable (λ x, limsup u (λ i, f i x)) :=
+begin
+  simp_rw [hu.to_has_basis.limsup_eq_infi_supr],
+  refine measurable_binfi' _ _ hu.countable _,
+  exact λ i, measurable_bsupr' _ _ (hs i) hf
+end
+
+lemma measurable_liminf [complete_linear_order β] [topological_space β] [second_countable_topology β]
+  [order_topology β] [borel_space β] {f : ℕ → α → β} (hf : ∀ i, measurable (f i)) :
+  measurable (λ x, liminf at_top (λ i, f i x)) :=
+measurable_liminf' hf at_top_countable_basis (λ i, countable_encodable _)
+
+lemma measurable_limsup [complete_linear_order β] [topological_space β] [second_countable_topology β]
+  [order_topology β] [borel_space β] {f : ℕ → α → β} (hf : ∀ i, measurable (f i)) :
+  measurable (λ x, limsup at_top (λ i, f i x)) :=
+measurable_limsup' hf at_top_countable_basis (λ i, countable_encodable _)
 
 instance foo {α} [conditionally_complete_linear_order_bot α] : conditionally_complete_linear_order α :=
 { .._inst_9 }
@@ -1202,42 +1279,51 @@ instance foo {α} [conditionally_complete_linear_order_bot α] : conditionally_c
 lemma measurable_to_nnreal : measurable ennreal.to_nnreal :=
 ennreal.measurable_of_measurable_nnreal measurable_id
 
-lemma measurable.to_nnreal [measurable_space α] {f : α → ennreal} (hf : measurable f) :
-  measurable (λ x, (f x).to_nnreal) :=
+lemma measurable.to_nnreal {f : α → ennreal} (hf : measurable f) : measurable (λ x, (f x).to_nnreal) :=
 measurable_to_nnreal.comp hf
 
-lemma measurable_ennreal_coe_iff [measurable_space α] {f : α → nnreal} :
+lemma measurable_ennreal_coe_iff {f : α → nnreal} :
   measurable (λ x, (f x : ennreal)) ↔ measurable f :=
 ⟨λ h, h.to_nnreal, λ h, h.ennreal_coe⟩
 
 namespace ennreal
-lemma coe_liminf {ι} {f : ι → nnreal} (u : filter ι) :
-  (↑(liminf u f) : ennreal) = liminf u (λ x, (f x : ennreal)) :=
-begin
-  sorry
-end
+
+-- rename, and let other one be continuous_coe_iff (also use this once)
+lemma continuous_coe' : continuous (coe : nnreal → ennreal) :=
+embedding_coe.continuous
+
 end ennreal
 
 lemma tendsto_pi {ι α β : Type*} [topological_space β] {f : ι → α → β} {g : α → β} {u : filter ι} :
   tendsto f u (nhds g) ↔ ∀ x, tendsto (λ i, f i x) u (nhds (g x)) :=
 by simp [nhds_pi, filter.tendsto_comap_iff]
 
-lemma measurable_of_tendsto_nnreal {f : ℕ → α → nnreal} {g : α → nnreal}
-  (hf : ∀ i, measurable (f i)) (lim : tendsto f at_top (nhds g)) : measurable g :=
+lemma measurable_of_tendsto_nnreal' {ι ι'} {f : ι → α → nnreal} {g : α → nnreal} (u : filter ι)
+  [ne_bot u] (hf : ∀ i, measurable (f i)) (lim : tendsto f u (nhds g)) {p : ι' → Prop}
+  {s : ι' → set ι} (hu : u.has_countable_basis p s) (hs : ∀ i, (s i).countable) : measurable g :=
 begin
-  rw [tendsto_pi] at lim,
-  have : (λ x, liminf at_top (λ n, f n x)) = g := funext (λ x, (lim x).liminf_eq'),
-  subst this,
-  have : measurable (λ x, liminf at_top (λ n, (f n x : ennreal))) := measurable_liminf (λ i, (hf i).ennreal_coe),
-  simp_rw [← measurable_ennreal_coe_iff, ennreal.coe_liminf], exact this
+  rw [tendsto_pi] at lim, rw [← measurable_ennreal_coe_iff],
+  have : (λ x, liminf u (λ n, (f n x : ennreal))) = λ x, (g x : ennreal) :=
+  funext (λ x, ((ennreal.continuous_coe'.tendsto (g x)).comp (lim x)).liminf_eq'),
+  rw [← this],
+  show measurable (λ x, liminf u (λ n, (f n x : ennreal))),
+  exact measurable_liminf' (λ i, (hf i).ennreal_coe) hu hs,
 end
 
-lemma measurable_of_tendsto_metric [metric_space β] [borel_space β] {f : ℕ → α → β} {g : α → β}
+#lint
+
+lemma measurable_of_tendsto_nnreal {f : ℕ → α → nnreal} {g : α → nnreal}
   (hf : ∀ i, measurable (f i)) (lim : tendsto f at_top (nhds g)) : measurable g :=
+measurable_of_tendsto_nnreal' at_top hf lim at_top_countable_basis (λ i, countable_encodable _)
+
+lemma measurable_of_tendsto_metric' {ι ι'} [metric_space β] [borel_space β] {f : ι → α → β} {g : α → β}
+  (u : filter ι) [ne_bot u] (hf : ∀ i, measurable (f i)) (lim : tendsto f u (nhds g)) {p : ι' → Prop}
+  {s : ι' → set ι} (hu : u.has_countable_basis p s) (hs : ∀ i, (s i).countable) :
+  measurable g :=
 begin
   apply measurable_of_is_closed', intros s h1s h2s h3s,
   have : measurable (λx, inf_nndist (g x) s),
-  { apply measurable_of_tendsto_nnreal (λ i, (hf i).inf_nndist),
+  { refine measurable_of_tendsto_nnreal' u (λ i, (hf i).inf_nndist) _ hu hs,
     rw [tendsto_pi], rw [tendsto_pi] at lim, intro x,
     exact ((continuous_inf_nndist_pt s).tendsto (g x)).comp (lim x) },
     have h4s : g ⁻¹' s = (λ x, inf_nndist (g x) s) ⁻¹' {0},
@@ -1246,7 +1332,7 @@ begin
 end
 
 
-#print measurable_of_tendsto_metric
+#print axioms measurable_of_tendsto_metric
 
 /-- The Bochner intergral is measurable. This shows that the integrand of (the right-hand-side of)
   Fubini's theorem is measurable. -/
