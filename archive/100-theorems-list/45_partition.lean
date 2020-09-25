@@ -93,7 +93,7 @@ begin
   simpa using b_blocks_sum,
 end
 
-def partial_odd_gf (n : ℕ) := ∏ i in range n, (1 - (X : power_series ℚ)^(2*i+1))⁻¹
+def partial_odd_gf (n : ℕ) [field α] := ∏ i in range n, (1 - (X : power_series α)^(2*i+1))⁻¹
 def partial_distinct_gf (n : ℕ) := ∏ i in range n, (1 + (X : power_series ℚ)^(i+1))
 
 def odd_partition (n : ℕ) := {c : partition n // ∀ i ∈ c.blocks, ¬ nat.even i}
@@ -301,41 +301,6 @@ begin
   { simp [zero_pow] },
 end
 
-lemma num_series (i : ℕ) :
-  (1 - (X : power_series ℚ)^(i+1))⁻¹ = indicator_series ℚ (λ k, ∃ p, (i+1) * p = k) :=
-begin
-  rw power_series.inv_eq_iff,
-  ext,
-  cases n,
-  { simp [mul_sub, zero_pow, constant_coeff_indicator] },
-  { simp [nat.succ_ne_zero n, mul_sub, coeff_indicator],
-    split_ifs,
-    { cases h,
-      simp [coeff_mul, coeff_X_pow, coeff_indicator, sum_ite, filter_filter],
-      suffices : filter (λ (a : ℕ × ℕ), (∃ (p : ℕ), (i+1) * p = a.fst) ∧ a.snd = i + 1) (nat.antidiagonal n.succ) = {((i + 1) * (h_w - 1), i + 1)},
-        rw this, simp,
-      rw eq_singleton_iff_unique_mem,
-      split,
-        simp only [mem_filter, and_true, eq_self_iff_true, nat.mem_antidiagonal, exists_apply_eq_apply],
-        cases h_w,
-        { rw mul_zero at h_h, cases h_h },
-        { simpa using h_h },
-      rintro ⟨_, _⟩,
-      simp only [and_imp, mem_filter, prod.mk.inj_iff, nat.mem_antidiagonal, exists_imp_distrib],
-      rintro _ _ rfl rfl,
-      refine ⟨_, rfl⟩,
-      rw [nat.mul_sub_left_distrib, h_h, ← a, mul_one, nat.add_sub_cancel] },
-    { simp [coeff_mul, coeff_X_pow, coeff_indicator, sum_ite, filter_filter],
-      apply eq_empty_of_forall_not_mem,
-      simp,
-      rintro _ _ _ _ rfl _,
-      subst a_3,
-      apply h,
-      refine ⟨x + 1, _⟩,
-      simpa } },
-  simp [zero_pow],
-end
-
 lemma card_eq_of_bijection {β : Type*} {s : finset α} {t : finset β}
   (f : α → β)
   (hf : ∀ a ∈ s, f a ∈ t)
@@ -403,14 +368,14 @@ lemma sum_sum {β : Type*} [add_comm_monoid β] (f : α → multiset β) (s : fi
   multiset.sum (finset.sum s f) = ∑ x in s, (f x).sum :=
 (sum_hom s multiset.sum).symm
 
-lemma partial_odd_gf_prop (n m : ℕ) :
-  (finset.card ((univ : finset (partition n)).filter (λ p, ∀ j ∈ p.blocks, j ∈ (range m).map mk_odd)) : ℚ) =
-    coeff ℚ n (partial_odd_gf m) :=
+lemma partial_odd_gf_prop (n m : ℕ) [field α] :
+  (finset.card ((univ : finset (partition n)).filter (λ p, ∀ j ∈ p.blocks, j ∈ (range m).map mk_odd)) : α) =
+    coeff α n (partial_odd_gf m) :=
 begin
   simp_rw [partial_odd_gf, num_series'],
-  erw ← finset.prod_map (range m) mk_odd (λ t, indicator_series ℚ (λ (k : ℕ), t ∣ k)),
+  erw ← finset.prod_map (range m) mk_odd (λ t, indicator_series α (λ (k : ℕ), t ∣ k)),
   simp_rw [coeff_prod_range, coeff_indicator, prod_boole, sum_boole],
-  norm_cast,
+  congr' 1,
   refine card_eq_of_bijection _ _ _ _,
   { intros p i, apply multiset.count i p.blocks * i },
   { simp only [mem_cut, mem_filter, mem_univ, true_and, mem_map, exists_prop, not_and,
@@ -434,7 +399,7 @@ begin
       rcases hi with ⟨_, ⟨_, _, rfl⟩, _⟩,
       cases multiset.eq_of_mem_repeat hi_h_right,
       apply nat.zero_lt_succ },
-    { rw sum_sum,
+    { rw ← sum_hom _ multiset.sum,
       simp_rw multiset.sum_repeat,
       have : ∀ i ∈ map mk_odd (range m), i ∣ f i,
         intros i hi, cases hf₃ i hi,
@@ -442,7 +407,9 @@ begin
         exact dvd.intro w rfl,
       simp_rw nat.nsmul_eq_mul,
       rw sum_congr rfl (λ i hi, nat.div_mul_cancel (this i hi)),
-      apply hf₁ },
+      apply hf₁,
+      apply_instance,
+      apply_instance },
     { intros j hj,
       rw mem_sum at hj,
       rcases hj with ⟨_, _, _⟩,
@@ -491,8 +458,8 @@ begin
 end
 
 /--  If m is big enough, the partial product's coefficient counts the number of odd partitions -/
-theorem odd_gf_prop (n m : ℕ) (h : n < m * 2) :
-  (fintype.card (odd_partition n) : ℚ) = coeff ℚ n (partial_odd_gf m) :=
+theorem odd_gf_prop (n m : ℕ) (h : n < m * 2) [field α] :
+  (fintype.card (odd_partition n) : α) = coeff α n (partial_odd_gf m) :=
 begin
   erw [fintype.subtype_card, ← partial_odd_gf_prop],
   congr' 2,
