@@ -1,9 +1,6 @@
 import ring_theory.power_series
 import combinatorics.composition
 import data.nat.parity
-import ring_theory.power_series
-import combinatorics.composition
-import data.nat.parity
 import data.finset.nat_antidiagonal
 import tactic.interval_cases
 import tactic.apply_fun
@@ -13,20 +10,6 @@ noncomputable theory
 
 variables {α : Type*}
 
-/-- The sequence from section 1.1 of GFology -/
-def sequence_one_one : ℕ → ℚ
-| 0 := 0
-| (n+1) := 2 * sequence_one_one n + 1
-
-/-- Inductive proof of the formula -/
-lemma inductive_proof : ∀ n, sequence_one_one n = 2^n - 1
-| 0 := rfl
-| (n+1) :=
-begin
-  rw [sequence_one_one, inductive_proof n, pow_succ],
-  ring,
-end
-
 /--
 The generating function for a sequence is just the power series whose coefficients are the
 sequence.
@@ -35,27 +18,12 @@ sequence.
 def generating_function (f : ℕ → α) : power_series α :=
 power_series.mk f
 
--- example {α : Type*} [field α] {a b c : α} (h : a * c = b) : a = b * c⁻¹ :=
--- begin
---   library_search,
--- end
 @[simp]
 lemma constant_coeff_mk (f : ℕ → α) [semiring α] : constant_coeff _ (mk f) = f 0 :=
 begin
   rw [← coeff_zero_eq_constant_coeff_apply, coeff_mk],
 end
--- @[simp] lemma coeff_C_mul [semiring α] (n : ℕ) (φ : power_series α) (a : α) :
---   coeff α n (C α a * φ) = a * coeff α n φ :=
--- begin
---   sorry -- open PR to mathlib so sorry here
--- end
--- @[simp]
--- lemma coeff_smul (a : α) (n : ℕ) (f : power_series α) [semiring α] :
---   coeff _ n (a • f) = a * coeff _ n f :=
--- begin
---   change coeff _ _ (C _ _ * _) = _,
---   rw coeff_C_mul,
--- end
+
 @[simp]
 lemma constant_coeff_smul (a : α) (f : power_series α) [semiring α] :
   constant_coeff _ (a • f) = a * constant_coeff _ f :=
@@ -77,129 +45,6 @@ lemma eq_inv_iff [field α] {a b : power_series α} (h : constant_coeff _ b ≠ 
 by rw [← eq_mul_inv_iff h, one_mul]
 lemma power_series.inv_eq_iff [field α] {a b : power_series α} (h : constant_coeff _ b ≠ 0) : b⁻¹ = a ↔ a * b = 1 :=
 by rw [eq_comm, eq_inv_iff h]
-
--- lemma big_geom (q : ℚ) : generating_function (λ n, q ^ n) = (1 - q • X)⁻¹ :=
--- begin
---   rw eq_inv_iff,
---   { rw [mul_sub, mul_one],
---     ext,
---     cases n,
---       simp,
---     simp [if_neg n.succ_ne_zero, coeff_smul, pow_succ] },
---   { simp },
--- end
--- @[simp]
--- lemma big_geom' (n : ℕ) (q : ℚ) : coeff _ n (1 - q • X)⁻¹ = q ^ n :=
--- begin
---   rw [← big_geom, generating_function, coeff_mk],
--- end
-
--- lemma basic_geom : generating_function (λ n, (1 : ℚ)) = (1 - X)⁻¹ :=
--- by simpa using big_geom 1
--- @[simp]
--- lemma basic_geom' (n : ℕ) : coeff ℚ n (1 - X)⁻¹ = 1 :=
--- by simpa using big_geom' n 1
-
--- lemma basic_arith_geom : generating_function (λ n, (n + 1 : ℚ)) = ((1 - X)^2)⁻¹ :=
--- calc generating_function (λ n, (n + 1 : ℚ))
---          = differentiate (generating_function (λ n, (1 : ℚ))) : power_series.ext (by simp)
---      ... = ((1 - X)^2)⁻¹ : by simp [basic_geom, diff_inv]
-
--- lemma generate_of_succ (f : ℕ → ℚ) (h : f 0 = 0) :
---   generating_function f = X * generating_function (λ n, f (n+1)) :=
--- begin
---   ext,
---   cases n,
---   simp [h],
---   rw [mul_comm X],
---   simp,
--- end
--- lemma basic_arith_geom' : generating_function (λ n, (n : ℚ)) = X * ((1 - X)^2)⁻¹ :=
--- begin
---   rw [generate_of_succ],
---     simp [basic_arith_geom],
---   simp,
--- end
-
--- lemma my_seq :
---   generating_function sequence_one_one = X * (1 - X)⁻¹ * (1 - (2 : ℚ) • X)⁻¹ :=
--- begin
---   rw [eq_mul_inv_iff, eq_mul_inv_iff, generating_function],
---   { ext,
---     cases n,
---     { simp [sequence_one_one] },
---     cases n,
---     { simp [mul_sub, sub_mul, ← mul_assoc, sequence_one_one, coeff_smul, ← sub_add], },
---     { have : ¬(n.succ.succ = 1), rintro ⟨⟩,
---       simp [mul_sub, sub_mul, ← mul_assoc, coeff_X, sequence_one_one, coeff_smul, if_neg this] } },
---   { simp },
---   { simp },
--- end
-
--- lemma gf_proof (n : ℕ) : sequence_one_one n = 2^n - 1 :=
--- begin
---   suffices : coeff _ n (generating_function sequence_one_one) = 2^n - 1,
---     simpa,
---   have : (X : power_series ℚ) * (1 - X)⁻¹ * (1 - (2 : ℚ) • X)⁻¹ = X * ((2 : ℚ) • (1 - (2 : ℚ) • X)⁻¹ - (1 - X)⁻¹),
---     rw [mul_inv_eq_iff, mul_assoc, sub_mul, algebra.smul_mul_assoc, power_series.inv_mul,
---         mul_inv_eq_iff, mul_assoc, sub_mul, mul_comm (1 - X)⁻¹, mul_assoc, power_series.inv_mul,
---         mul_one, algebra.smul_mul_assoc, one_mul, smul_sub, sub_sub_sub_cancel_right, two_smul];
---     simp,
---   rw [my_seq, this],
---   cases n,
---     simp,
---   rw mul_comm X,
---   simp [mul_sub, coeff_smul, pow_succ],
--- end
-
--- /-- The sequence from section 1.2 of GFology -/
--- def sequence_one_two : ℕ → ℚ
--- | 0 := 1
--- | (n+1) := 2 * sequence_one_two n + n
-
--- lemma my_seq2 :
---   generating_function sequence_one_two = (1 - (2:ℚ)•X + (2:ℚ)•X^2) * ((1 - X)^2)⁻¹ * (1 - (2:ℚ)•X)⁻¹ :=
--- begin
---   rw [eq_mul_inv_iff, eq_mul_inv_iff],
---   { ext,
---     cases n,
---     { simp [sequence_one_two, pow_two] },
---     cases n,
---     { simp [← mul_assoc, coeff_X_pow, sequence_one_two, pow_two (1 - X), mul_sub, sub_mul],
---       norm_num },
---     cases n,
---     { simp [coeff_X_pow, mul_sub, sub_mul, pow_two (1 - X), sequence_one_two, ← mul_assoc, coeff_X],
---       norm_num },
---     simp [pow_two (1 - X), mul_sub, sub_mul, sequence_one_two, ← mul_assoc, coeff_one_X,
---           coeff_X_pow, coeff_X],
---     ring },
---   { simp },
---   { simp },
--- end
-
--- lemma gf_proof2 (n : ℕ) : sequence_one_two n = 2^(n+1) - n - 1 :=
--- begin
---   suffices : coeff _ n (generating_function sequence_one_two) = 2^(n+1) - n - 1,
---     simpa,
---   have : (1 - (2:ℚ)•(X : power_series ℚ) + (2:ℚ)•X^2) * ((1-X)^2)⁻¹ * (1 - (2:ℚ)•X)⁻¹ = (2:ℚ)•(1 - (2:ℚ)•X)⁻¹ - ((1-X)^2)⁻¹,
---     rw [mul_inv_eq_iff, sub_mul, algebra.smul_mul_assoc, power_series.inv_mul,
---         mul_inv_eq_iff, sub_mul, mul_comm _⁻¹, mul_assoc, power_series.inv_mul],
---     simp [← sub_add, sub_mul, mul_sub, two_smul],
---     ring,
---     simp, simp, simp, simp,
---   rw [my_seq2, this],
---   simp only [←basic_arith_geom, coeff_mk, coeff_smul, add_monoid_hom.map_sub, big_geom'],
---   simp [sub_sub, pow_succ],
--- end
-
--- lemma inductive_proof2 : ∀ n, sequence_one_two n = 2^(n+1) - n - 1
--- | 0 := rfl
--- | (n+1) :=
--- begin
---   simp [sequence_one_two, inductive_proof2 n, pow_succ],
---   ring,
--- end
-
 
 open finset
 open_locale big_operators
@@ -258,13 +103,6 @@ instance (n : ℕ) : fintype (odd_partition n) :=
 subtype.fintype _
 instance (n : ℕ) : fintype (distinct_partition n) :=
 subtype.fintype _
-
--- def splits (n k : ℕ) : finset (list ℕ) := sorry
-
--- lemma mem_splits (n k : ℕ) (l : list ℕ) : l ∈ splits n k ↔ l.sum = n ∧ l.length = k :=
--- begin
---   sorry
--- end
 
 /-- Functions defined only on s, which sum to n. In other words, a partition of n indexed by s. -/
 def cut {ι : Type*} (s : finset ι) (n : ℕ) : finset (ι → ℕ) :=
