@@ -22,13 +22,13 @@ open function set measure_theory.outer_measure measurable_space topological_spac
 
 namespace function
 
-example {ι : Type*} {α : ι → Type*} (i : ι) (g : (Π i, α i) → α i) (s : set (Π i, α i)) :
-  eval i '' s = g '' s :=
-begin
-  success_if_fail { simp only [eval_apply] },
-  simp, -- why does this simplify?
-  sorry
-end
+-- example {ι : Type*} {α : ι → Type*} (i : ι) (g : (Π i, α i) → α i) (s : set (Π i, α i)) :
+--   eval i '' s = g '' s :=
+-- begin
+--   success_if_fail { simp only [eval_apply] },
+--   simp, -- why does this simplify?
+--   sorry
+-- end
 
 end function
 open function
@@ -166,6 +166,10 @@ prod_add_prod_le' (mem_univ i) h2i (λ j _, hgf j) (λ j _, hhf j)
 end finset
 
 namespace ennreal
+
+lemma of_real_le_of_le_to_real {a : ℝ} {b : ennreal} (h : a ≤ ennreal.to_real b) :
+  ennreal.of_real a ≤ b :=
+(of_real_le_of_real h).trans of_real_to_real_le
 
 end ennreal
 
@@ -842,6 +846,27 @@ begin
 end
 
 namespace measure_theory
+
+namespace simple_func
+
+
+section
+variables [normed_group α] [opens_measurable_space α] {γ : Type*} [measurable_space γ]
+open simple_func
+
+lemma norm_approx_on_zero_le {f : β → α} (hf : measurable f) {s : set α} (h₀ : (0 : α) ∈ s)
+  [separable_space s] (x : β) (n : ℕ) :
+  ∥ approx_on f hf s 0 h₀ n x ∥ ≤ ∥ f x ∥ + ∥ f x ∥ :=
+begin
+  have := edist_approx_on_y0_le hf h₀ x n,
+  simp [edist_comm (0 : α), edist_eq_coe_nnnorm] at this,
+  exact_mod_cast this,
+end
+end
+
+end simple_func
+
+
 namespace measure
 
 /-- The product of two measures. -/
@@ -1061,15 +1086,6 @@ measurable.mul
 
 end
 
-
-lemma is_measurable_lt' [topological_space α] [opens_measurable_space α] [linear_order α] [order_closed_topology α] [second_countable_topology α] : is_measurable {p : α × α | p.1 < p.2} :=
-is_open_lt_prod.is_measurable
-
-lemma is_measurable_lt [topological_space α] [opens_measurable_space α] [linear_order α]
-  [order_closed_topology α] [second_countable_topology α] {f g : β → α}
-  (hf : measurable f) (hg : measurable g) : is_measurable {a | f a < g a} :=
-hf.prod_mk hg is_measurable_lt'
-
 lemma ae_lt_top {f : α → ennreal} (hf : measurable f)
   (h2f : ∫⁻ x, f x ∂μ < ⊤) : ∀ᵐ x ∂μ, f x < ⊤ :=
 begin
@@ -1202,6 +1218,12 @@ nnreal.continuous_coe.measurable
 
 lemma measurable_ennreal_to_real : measurable ennreal.to_real :=
 ennreal.measurable_of_measurable_nnreal nnreal.measurable_coe
+
+section
+variables [measurable_space α] [normed_group α] [opens_measurable_space α] [measurable_space β]
+lemma measurable_ennnorm : measurable (λ x : α, (nnnorm x : ennreal)) :=
+measurable_nnnorm.ennreal_coe
+end
 
 lemma measurable.to_real {f : α → ennreal} (hf : measurable f) : measurable (λ x, ennreal.to_real (f x)) :=
 measurable_ennreal_to_real.comp hf
@@ -1431,56 +1453,58 @@ variables {f g : α → E}
 lemma integral_add' (hf : integrable f μ) (hg : integrable g μ) :
   ∫ a, (f + g) a ∂μ = ∫ a, f a ∂μ + ∫ a, g a ∂μ :=
 integral_add hf hg
+
+lemma integral_zero' : integral μ (0 : α → E) = 0 :=
+integral_zero α E
+
+lemma integral_sub' (hf : integrable f μ) (hg : integrable g μ) :
+  ∫ a, (f - g) a ∂μ = ∫ a, f a ∂μ - ∫ a, g a ∂μ :=
+integral_sub hf hg
+
 end
 
-lemma integral_smul_const (f : α → ℝ) (c : E) : ∫ x, f x • c ∂μ = (∫ x, f x ∂μ) • c :=
+variables {F : Type*} [measurable_space F]
+variables [normed_group F] [normed_space ℝ F]
+variables [measurable_space F] [borel_space F]
+variables [second_countable_topology F] [complete_space F]
+
+-- todo: this can probably be generalized to `f` without the assumption `hf`.
+lemma integral_smul_const {f : α → ℝ} (hf : integrable f μ) (c : E) :
+  ∫ x, f x • c ∂μ = (∫ x, f x ∂μ) • c :=
+((continuous_linear_map.id ℝ ℝ).smul_right c).integral_comp_comm hf
+
+lemma measurable_smul_const {f : α → ℝ} {c : E} (hc : c ≠ 0) :
+  measurable (λ x, f x • c) ↔ measurable f :=
+begin
+  refine ⟨λ hf, _, λ hf, hf.smul measurable_const⟩,
+  intros s hs, sorry
+end
+
+lemma integrable_smul_const {f : α → ℝ} {c : E} (hc : c ≠ 0) :
+  integrable (λ x, f x • c) μ ↔ integrable f μ :=
 begin
   sorry
 end
 
-lemma integral_to_real {f : α → ennreal} (hfm : measurable f) :
+lemma integral_smul_const' (f : α → ℝ) (c : E) :
+  ∫ x, f x • c ∂μ = (∫ x, f x ∂μ) • c :=
+begin
+  by_cases hf : integrable f μ,
+  { exact ((continuous_linear_map.id ℝ ℝ).smul_right c).integral_comp_comm hf },
+  { by_cases hc : c = 0,
+    { simp only [hc, integral_zero, smul_zero] },
+    rw [integral_undef hf, integral_undef, zero_smul],
+    rwa [integrable_smul_const hc] }
+end
+
+lemma integral_to_real {f : α → ennreal} (hfm : measurable f) (hf : ∀ᵐ x ∂μ, f x < ⊤) :
   ∫ a, (f a).to_real ∂μ = (∫⁻ a, f a ∂μ).to_real :=
-sorry
-
-
--- instance : topological_space (simple_func α E) :=
--- topological_space.induced simple_func.to_fun (by apply_instance)
--- instance : measurable_space (simple_func α E) := borel _
--- instance : borel_space (simple_func α E) := ⟨rfl⟩
--- instance {α} [topological_space α] : topological_space (multiset α) :=
--- quotient.topological_space
--- instance {α} [topological_space α] : topological_space (finset α) :=
--- induced finset.val (by apply_instance)
-
-
--- @[to_additive]
--- lemma continuous_prod {α β γ} [topological_space α] [comm_monoid α] [has_continuous_mul α]
---   [topological_space β]
---   {f : γ → β → α} {s : finset γ} (h : ∀ x ∈ s, continuous (f x)) :
---   continuous (∏ c in s, f c) :=
--- continuous_finset_prod s h
-
--- @[simp] lemma map_map_seq {α β γ δ} (f : α → β → γ) (g : γ → δ) (u : filter α) (v : filter β) :
---   map g (map f u <*> v) = map (λ x, g ∘ f x) u <*> v :=
--- by rw [← map_map]
-
--- lemma map_map_seq {α β γ δ} (m : Type* → Type*) [applicative m] [is_lawful_applicative m]
---   (f : α → β → γ) (g : γ → δ) (u : m α) (v : m β) :
---   g <$> (f <$> u <*> v) = (λ x y, g (f x y)) <$> u <*> v :=
--- by simp with functor_norm
-
--- lemma map_seq_map {α β γ δ} (m : Type* → Type*) [applicative m] [is_lawful_applicative m]
---   (f : α → γ → δ) (g : β → γ) (u : m α) (v : m β) :
---   f <$> u <*> g <$> v = (λ x y, f x (g y)) <$> u <*> v :=
--- by simp with functor_norm
-
--- lemma {u} filter.map_map_seq {α β γ δ : Type u} (f : α → β → γ) (g : γ → δ) (u : filter α)
---   (v : filter β) : map g (map f u <*> v) = map (λ x y, g (f x y)) u <*> v :=
--- map_map_seq filter f g u v
-
--- lemma {u} filter.map_seq_map {α β γ δ : Type u} (f : α → γ → δ) (g : β → γ) (u : filter α)
---   (v : filter β) : map f u <*> map g v = map (λ x y, f x (g y)) u <*> v :=
--- map_seq_map filter f g u v
+begin
+  rw [integral_eq_lintegral_of_nonneg_ae _ hfm.to_real],
+  { rw lintegral_congr_ae, refine hf.mp (eventually_of_forall _),
+    intros x hx, rw [lt_top_iff_ne_top] at hx, simp [hx] },
+  { exact (eventually_of_forall $ λ x, ennreal.to_real_nonneg) }
+end
 
 open list
 @[to_additive]
@@ -1499,11 +1523,6 @@ lemma continuous_prod {α} [topological_space α] [monoid α] [has_continuous_mu
   continuous (prod : list α → α) :=
 continuous_iff_continuous_at.mpr $ λ l, tendsto_prod
 
--- lemma tendsto.prod {α β} [topological_space α] [monoid α] [has_continuous_mul α]
---   [topological_space β] {u : filter β} {l : β → list α} : ∀ {l' : list α}
---    (hl : tendsto l u (nhds l')), tendsto (λb, (l b).prod) u (𝓝 (l'.prod)) :=
--- λ l', (continuous_prod.tendsto l').comp
-
 lemma tendsto_fst' {α β} [topological_space α] [topological_space β] {x : α × β} :
   tendsto prod.fst (𝓝 x) (𝓝 x.fst) :=
 continuous_iff_continuous_at.mp continuous_fst x
@@ -1516,32 +1535,28 @@ continuous_iff_continuous_at.mp continuous_snd x
 lemma continuous_cons {α} [topological_space α] : continuous (λ x : α × list α, (x.1 :: x.2 : list α)) :=
 continuous_iff_continuous_at.mpr $ λ x, tendsto_cons tendsto_fst' tendsto_snd'
 
-lemma tendsto_eval {α β} [topological_space α] [topological_space β]
-  {f : α → β} {x : α} : tendsto (λ x : (α → β) × α, x.1 x.2) (𝓝 f ×ᶠ 𝓝 x) (𝓝 (f x)) :=
-sorry
+-- lemma tendsto_list_map {α β} [topological_space α] [topological_space β]
+--   {f : α → β} {l : list α} :
+--   tendsto (λ p : (α → β) × list α, p.2.map p.1) (𝓝 f ×ᶠ 𝓝 l) (𝓝 (l.map f)) :=
+-- begin
+--   induction l with x l ih,
+--   { simp only [nhds_nil, list.map, tendsto_pure, list.map_eq_nil],
+--     refine eventually.filter_mono inf_le_right _, simp },
+--   { have : 𝓝 f ×ᶠ 𝓝 (x :: l : list α) =
+--       (𝓝 f ×ᶠ (𝓝 x ×ᶠ 𝓝 l)).map (λp : _ × α × list α, (p.1, p.2.1 :: p.2.2)),
+--     { sorry },
+--     simp_rw [this, tendsto_map'_iff, function.comp],
+--     refine tendsto_cons _ (ih.comp $ tendsto_fst.prod_mk $ tendsto_snd.comp tendsto_snd),
+--     refine tendsto_eval.comp (tendsto_fst.prod_mk $ tendsto_fst.comp tendsto_snd) }
+-- end
 
-lemma tendsto_list_map {α β} [topological_space α] [topological_space β]
-  {f : α → β} {l : list α} :
-  tendsto (λ p : (α → β) × list α, p.2.map p.1) (𝓝 f ×ᶠ 𝓝 l) (𝓝 (l.map f)) :=
-begin
-  induction l with x l ih,
-  { simp only [nhds_nil, list.map, tendsto_pure, list.map_eq_nil],
-    refine eventually.filter_mono inf_le_right _, simp },
-  { have : 𝓝 f ×ᶠ 𝓝 (x :: l : list α) =
-      (𝓝 f ×ᶠ (𝓝 x ×ᶠ 𝓝 l)).map (λp : _ × α × list α, (p.1, p.2.1 :: p.2.2)),
-    { sorry },
-    simp_rw [this, tendsto_map'_iff, function.comp],
-    refine tendsto_cons _ (ih.comp $ tendsto_fst.prod_mk $ tendsto_snd.comp tendsto_snd),
-    refine tendsto_eval.comp (tendsto_fst.prod_mk $ tendsto_fst.comp tendsto_snd) }
-end
-
-@[to_additive]
-lemma tendsto.list_prod {α β γ} [topological_space α] [monoid α] [has_continuous_mul α]
-  [topological_space β] [topological_space γ] {f : γ → β → α} {u : filter β} {g : γ → α}
-  (hf : ∀c, tendsto (f c) u (nhds (g c))) {l : β → list γ} {l' : list γ}
-  (hl : tendsto l u (𝓝 l')) :
-  tendsto (λ b, ((l b).map (λc, f c b)).prod) u (𝓝 ((l'.map g).prod)) :=
-tendsto_prod.comp $ tendsto_list_map.comp $ (tendsto_pi.mpr hf).prod_mk hl
+-- @[to_additive]
+-- lemma tendsto.list_prod {α β γ} [topological_space α] [monoid α] [has_continuous_mul α]
+--   [topological_space β] [topological_space γ] {f : γ → β → α} {u : filter β} {g : γ → α}
+--   (hf : ∀c, tendsto (f c) u (nhds (g c))) {l : β → list γ} {l' : list γ}
+--   (hl : tendsto l u (𝓝 l')) :
+--   tendsto (λ b, ((l b).map (λc, f c b)).prod) u (𝓝 ((l'.map g).prod)) :=
+-- tendsto_prod.comp $ tendsto_list_map.comp $ (tendsto_pi.mpr hf).prod_mk hl
 
 @[to_additive]
 lemma prod_congr {α} [comm_monoid α] ⦃l1 l2 : list α⦄ (hl : l1 ≈ l2) :
@@ -1552,45 +1567,6 @@ by { rw [← multiset.coe_prod, ← multiset.coe_prod], apply congr_arg, exact @
 @[to_additive]
 def multiset.prod_def {α} [comm_monoid α] (s : multiset α) : s.prod = quotient.lift list.prod prod_congr s :=
 by { rcases s with ⟨l⟩, simp, refl }
-
--- lemma continuous_at_quotient_lift {α β} [topological_space α] [topological_space β] [s : setoid α]
---   {f : α → β} {x : α} (hs : ∀ a b, a ≈ b → f a = f b)
---   (h : continuous_at f x) : continuous_at (quotient.lift f hs : quotient s → β) ⟦x⟧ :=
--- sorry
-
--- @[to_additive]
--- lemma tendsto.multiset_prod {α β γ} [topological_space α] [comm_monoid α] [has_continuous_mul α]
---   [topological_space β] [topological_space γ] {f : γ → β → α} {u : filter β} {g : γ → α}
---   (hf : ∀c, tendsto (f c) u (𝓝 (g c))) {s : β → multiset γ} {s' : multiset γ}
---   (hs : tendsto s u (𝓝 s')) :
---     tendsto (λb, ((s b).map (λc, f c b)).prod) u (𝓝 ((s'.map g).prod)) :=
--- by { simp_rw [multiset.prod_def], rcases s' with ⟨l'⟩,
---   refine tendsto.comp (continuous_at_quotient_lift _ tendsto_prod) _,
---   -- have := continuous_at_quotient_lift _ tendsto_list_map,
---   -- refine tendsto.comp (continuous_at_quotient_lift _ tendsto_list_map) _,
---   sorry
---    }
-
--- @[to_additive]
--- lemma tendsto.finset_prod {α β γ} [topological_space α] [comm_monoid α] [has_continuous_mul α]
---   [topological_space β] [topological_space γ] {f : γ → β → α} {u : filter β} {g : γ → α}
---   (hf : ∀c, tendsto (f c) u (𝓝 (g c))) {s : β → finset γ} {s' : finset γ}
---   (hs : tendsto s u (𝓝 s')) : tendsto (λ b, ∏ c in s b, f c b) u (𝓝 (∏ c in s', g c)) :=
--- tendsto.multiset_prod hf $
---   tendsto.comp (continuous_iff_continuous_at.mp continuous_induced_dom s') hs
-
--- @[to_additive]
--- theorem continuous.finset_prod {α β γ} [topological_space α] [comm_monoid α]
--- [has_continuous_mul α] [topological_space β] [topological_space γ] {f : γ → β → α}
---   {s : β → finset γ} (hf : ∀ c, continuous (f c)) (hs : continuous s) :
---   continuous (λ x, ∏ c in s x, f c x) :=
--- continuous_iff_continuous_at.mpr $
---   λ x, tendsto.finset_prod (λ c, (hf c).continuous_at) hs.continuous_at
-
-
--- lemma continuous_simple_func_integral :
---   continuous (simple_func.integral μ : simple_func α E → E) :=
--- continuous.finset_sum sorry sorry
 
 lemma simple_func.integral_eq_sum_of_subset {f : simple_func α E} {μ : measure α} {s : finset E}
   (hs : f.range.filter (λ x, x ≠ 0) ⊆ s) : f.integral μ = ∑ x in s, (μ (f ⁻¹' {x})).to_real • x :=
@@ -1606,8 +1582,7 @@ end
 lemma measurable.integral_prod_right [sigma_finite ν] ⦃f : α → β → E⦄
   (hf : measurable (uncurry f)) : measurable (λ x, ∫ y, f x y ∂ν) :=
 begin
-  obtain ⟨s, hs⟩ := simple_func_sequence_tendsto hf,
-  choose h1s h2s using hs,
+  let s : ℕ → simple_func (α × β) E := simple_func.approx_on _ hf univ _ (mem_univ 0),
   let s' : ℕ → α → simple_func β E := λ n x, (s n).comp (prod.mk x) measurable_prod_mk_left,
   let f' : ℕ → α → E := λ n, {x | integrable (f x) ν}.indicator
     (λ x, (s' n x).integral ν),
@@ -1627,13 +1602,14 @@ begin
   { rw [tendsto_pi], intro x,
     by_cases hfx : integrable (f x) ν,
     { have : ∀ n, integrable (s' n x) ν := λ n, (hfx.norm.add hfx.norm).mono' (s' n x).measurable
-        (eventually_of_forall (λ y, h2s (x, y) n)),
+        (eventually_of_forall $
+          λ y, by { dsimp [s'], exact simple_func.norm_approx_on_zero_le _ _ (x, y) n }),
       simp only [f', hfx, simple_func.integral_eq_integral _ (this _), indicator_of_mem,
         mem_set_of_eq],
       refine tendsto_integral_of_dominated_convergence (λ y, ∥f x y∥ + ∥f x y∥)
         (λ n, (s' n x).measurable) hf.of_uncurry_left (hfx.norm.add hfx.norm) _ _,
-      { exact λ n, eventually_of_forall (λ y, h2s (x, y) n) },
-      { exact eventually_of_forall (λ y, h1s (x, y)) } },
+      { exact λ n, eventually_of_forall (λ y, simple_func.norm_approx_on_zero_le _ _ (x, y) n) },
+      { exact eventually_of_forall (λ y, simple_func.tendsto_approx_on _ _ (by simp)) } },
     { simpa [f', hfx, integral_undef] using @tendsto_const_nhds _ _ _ (0 : E) _, }
      },
   exact measurable_of_tendsto_metric hf' h2f'
@@ -1646,15 +1622,17 @@ by { rw [← uncurry_curry f] at hf, exact hf.integral_prod_right }
 lemma norm_eq_self {x : ℝ} (hx : 0 ≤ x) : ∥ x ∥ = x :=
 by { rw [real.norm_eq_abs, abs_of_nonneg hx] }
 
-lemma nnnorm_eq_self {x : ℝ} (hx : 0 ≤ x) : nnnorm x = ⟨x, hx⟩ :=
-by { ext, exact norm_eq_self hx }
+lemma nnnorm_coe_eq_self {x : nnreal} : nnnorm (x : ℝ) = x :=
+by { ext, exact norm_eq_self (zero_le x) }
 
-lemma of_real_norm {α} [normed_group α] {x : α} :
-  ennreal.of_real ∥ x ∥ = (nnnorm x : ennreal) :=
-by { simp [ennreal.of_real, nnnorm_eq_self, ← nnreal.coe_eq, nnreal.coe_of_real] }
+-- lemma nnnorm_ennreal_mono {x : ennreal} : nnnorm (x : ℝ) = x :=
+-- by { ext, exact norm_eq_self (zero_le x) }
+
+lemma nnnorm_eq_self {x : ℝ} (hx : 0 ≤ x) : nnnorm x = ⟨x, hx⟩ :=
+@nnnorm_coe_eq_self ⟨x, hx⟩
 
 lemma ennnorm_eq_of_real {x : ℝ} (hx : 0 ≤ x) : (nnnorm x : ennreal) = ennreal.of_real x :=
-by { rw [← of_real_norm, norm_eq_self hx] }
+by { rw [← of_real_norm_eq_coe_nnnorm, norm_eq_self hx] }
 
 lemma and_iff_iff_imp_iff {p q r : Prop} (h1 : r → p) : (p ∧ q ↔ r) ↔ (p → (q ↔ r)) :=
 ⟨λ h2 hp, by { rwa [and_iff_right hp] at h2 },
@@ -1669,9 +1647,9 @@ begin
   simp only [has_finite_integral, lintegral_prod _ h1f.ennnorm],
   have : ∀ x, ∀ᵐ y ∂ν, 0 ≤ ∥ f (x, y) ∥ := λ x, eventually_of_forall (λ y, norm_nonneg _),
   simp_rw [integral_eq_lintegral_of_nonneg_ae (this _) (h1f.norm.comp measurable_prod_mk_left),
-    ennnorm_eq_of_real (ennreal.to_real_nonneg), of_real_norm],
+    ennnorm_eq_of_real (ennreal.to_real_nonneg), of_real_norm_eq_coe_nnnorm],
   rw [and_iff_iff_imp_iff],
-  { intro h2f, congr' 2, apply lintegral_congr_ae,
+  { intro h2f, rw lintegral_congr_ae,
     refine h2f.mp _, apply eventually_of_forall, intros x hx, dsimp,
     rw [ennreal.of_real_to_real], rw [← ennreal.lt_top_iff_ne_top], exact hx },
   { intro h2f, refine ae_lt_top _ h2f, exact h1f.ennnorm.lintegral_prod_right' },
@@ -1719,14 +1697,236 @@ hf.swap.integral_prod_left
 --norm_integral_le_integral_norm
 
 end measure_theory
+open measure_theory
 
-#print continuous
-#print l1.metric_space
+lemma measure_Union_null_iff {ι} [encodable ι] {s : ι → set α} :
+  μ (⋃ i, s i) = 0 ↔ ∀ i, μ (s i) = 0 :=
+⟨λ h i, measure_mono_null (subset_Union _ _) h, measure_Union_null⟩
 
-lemma ae_prod {p : α × β → Prop} : (∀ᵐ z ∂μ.prod ν, p z) ↔ ∀ᵐ x ∂ μ, ∀ᵐ y ∂ ν, p (x, y) :=
+lemma measure_prod_null_of_is_measurable [sigma_finite μ] [sigma_finite ν] {s : set (α × β)}
+  (hs : is_measurable s) : μ.prod ν s = 0 ↔ (λ x, ν (prod.mk x ⁻¹' s)) =ᵐ[μ] 0 :=
+by simp_rw [prod_apply hs, lintegral_eq_zero_iff hs.measure_prod_mk_left]
+
+-- todo: rename or prove iff
+lemma measure_prod_null [sigma_finite μ] [sigma_finite ν] {s : set (α × β)}
+  (h : μ.prod ν s = 0) : (λ x, ν (prod.mk x ⁻¹' s)) =ᵐ[μ] 0 :=
 begin
-  simp [filter.eventually, mem_ae_iff, set_of_compl, ← ne.def], sorry
+  obtain ⟨t, hst, mt, ht⟩ := exists_is_measurable_superset_of_measure_eq_zero h,
+  simp_rw [measure_prod_null_of_is_measurable mt] at ht,
+  rw [eventually_le_antisymm_iff],
+  exact ⟨eventually_le.trans_eq
+    (eventually_of_forall $ λ x, (measure_mono (preimage_mono hst) : _)) ht,
+    eventually_of_forall $ λ x, zero_le _⟩
 end
+
+lemma ae_prod [sigma_finite μ] [sigma_finite ν] {p : α × β → Prop}
+  (h : ∀ᵐ z ∂μ.prod ν, p z) : ∀ᵐ x ∂ μ, ∀ᵐ y ∂ ν, p (x, y) :=
+measure_prod_null h
+
+-- lemma measure_prod_null [sigma_finite μ] [sigma_finite ν] {s : set (α × β)} :
+--   μ.prod ν s = 0 ↔ (λ x, ν (prod.mk x ⁻¹' s)) =ᵐ[μ] 0 :=
+-- begin
+--   split,
+--   { intro h, obtain ⟨t, hst, mt, ht⟩ := exists_is_measurable_superset_of_measure_eq_zero h,
+--     simp_rw [measure_prod_null_of_is_measurable mt] at ht,
+--     rw [eventually_le_antisymm_iff],
+--     exact ⟨eventually_le.trans_eq
+--       (eventually_of_forall $ λ x, (measure_mono (preimage_mono hst) : _)) ht,
+--       eventually_of_forall $ λ x, zero_le _⟩ },
+--   { intro h, obtain ⟨t, hst, mt, ht⟩ := exists_is_measurable_superset_of_measure_eq_zero h,
+--     dsimp [set_of_compl, ← ne.def] at hst,
+--     have : (μ.prod ν) (t.prod univ) = 0,
+--     { simp_rw [prod_prod mt is_measurable.univ, ht, zero_mul] },
+--     refine measure_mono_null _ this, rintro ⟨x, y⟩ hxy, refine ⟨hst _, mem_univ y⟩, sorry
+--      }
+-- end
+
+-- lemma ae_prod [sigma_finite μ] [sigma_finite ν] {p : α × β → Prop} :
+--   (∀ᵐ z ∂μ.prod ν, p z) ↔ ∀ᵐ x ∂ μ, ∀ᵐ y ∂ ν, p (x, y) :=
+-- begin
+--   exact measure_prod_null,
+-- end
+
+variables {E' : Type*} [measurable_space E'] [normed_group E'] [borel_space E'] [complete_space E']
+  [normed_space ℝ E'] [second_countable_topology E']
+
+lemma integral_fn_integral_add [sigma_finite μ] [sigma_finite ν] ⦃f g : α × β → E⦄
+  {F : E → E'} (hF : measurable F)
+  (hf : integrable f (μ.prod ν))
+  (hg : integrable g (μ.prod ν)) :
+  ∫ x, F (∫ y, f (x, y) + g (x, y) ∂ν) ∂μ = ∫ x, F (∫ y, f (x, y) ∂ν + ∫ y, g (x, y) ∂ν) ∂μ :=
+begin
+  refine integral_congr_ae
+    (hF.comp (hf.add hg).measurable.integral_prod_right')
+    (hF.comp (hf.measurable.integral_prod_right'.add hg.measurable.integral_prod_right')) _,
+  refine hg.prod_right_ae.mp _, refine hf.prod_right_ae.mp _,
+  apply eventually_of_forall, intros x h2f h2g, simp [integral_add h2f h2g]
+end
+
+lemma integral_fn_integral_sub [sigma_finite μ] [sigma_finite ν] ⦃f g : α × β → E⦄
+  {F : E → E'} (hF : measurable F)
+  (hf : integrable f (μ.prod ν))
+  (hg : integrable g (μ.prod ν)) :
+  ∫ x, F (∫ y, f (x, y) - g (x, y) ∂ν) ∂μ = ∫ x, F (∫ y, f (x, y) ∂ν - ∫ y, g (x, y) ∂ν) ∂μ :=
+begin
+  refine integral_congr_ae
+    (hF.comp (hf.sub hg).measurable.integral_prod_right')
+    (hF.comp (hf.measurable.integral_prod_right'.sub hg.measurable.integral_prod_right')) _,
+  refine hg.prod_right_ae.mp _, refine hf.prod_right_ae.mp _,
+  apply eventually_of_forall, intros x h2f h2g, simp [integral_sub h2f h2g]
+end
+
+lemma lintegral_fn_integral_sub [sigma_finite μ] [sigma_finite ν] ⦃f g : α × β → E⦄
+  {F : E → ennreal} (hF : measurable F)
+  (hf : integrable f (μ.prod ν))
+  (hg : integrable g (μ.prod ν)) :
+  ∫⁻ x, F (∫ y, f (x, y) - g (x, y) ∂ν) ∂μ = ∫⁻ x, F (∫ y, f (x, y) ∂ν - ∫ y, g (x, y) ∂ν) ∂μ :=
+begin
+  refine lintegral_congr_ae _,
+  refine hg.prod_right_ae.mp _, refine hf.prod_right_ae.mp _,
+  apply eventually_of_forall, intros x h2f h2g, simp [integral_sub h2f h2g]
+end
+
+lemma integral_integral_add [sigma_finite μ] [sigma_finite ν] ⦃f g : α × β → E⦄
+  (hf : integrable f (μ.prod ν))
+  (hg : integrable g (μ.prod ν)) :
+  ∫ x, ∫ y, f (x, y) + g (x, y) ∂ν ∂μ = ∫ x, ∫ y, f (x, y) ∂ν + ∫ y, g (x, y) ∂ν ∂μ :=
+integral_fn_integral_add measurable_id hf hg
+
+lemma integral_integral_add' [sigma_finite μ] [sigma_finite ν] ⦃f g : α × β → E⦄
+  (hf : integrable f (μ.prod ν))
+  (hg : integrable g (μ.prod ν)) :
+  ∫ x, ∫ y, (f + g) (x, y) ∂ν ∂μ = ∫ x, ∫ y, f (x, y) ∂ν + ∫ y, g (x, y) ∂ν ∂μ :=
+integral_integral_add hf hg
+
+lemma integral_integral_sub [sigma_finite μ] [sigma_finite ν] ⦃f g : α × β → E⦄
+  (hf : integrable f (μ.prod ν))
+  (hg : integrable g (μ.prod ν)) :
+  ∫ x, ∫ y, f (x, y) - g (x, y) ∂ν ∂μ = ∫ x, ∫ y, f (x, y) ∂ν - ∫ y, g (x, y) ∂ν ∂μ :=
+integral_fn_integral_sub measurable_id hf hg
+
+lemma integral_integral_sub' [sigma_finite μ] [sigma_finite ν] ⦃f g : α × β → E⦄
+  (hf : integrable f (μ.prod ν))
+  (hg : integrable g (μ.prod ν)) :
+  ∫ x, ∫ y, (f - g) (x, y) ∂ν ∂μ = ∫ x, ∫ y, f (x, y) ∂ν - ∫ y, g (x, y) ∂ν ∂μ :=
+integral_integral_sub hf hg
+
+lemma lintegral_coe_eq_integral (f : α → nnreal) (hfi : integrable (λ x, (f x : real)) μ) :
+  ∫⁻ a, f a ∂μ = ennreal.of_real ∫ a, f a ∂μ :=
+begin
+  rw [integral_eq_lintegral_of_nonneg_ae (eventually_of_forall (λ x, (f x).coe_nonneg))
+    hfi.measurable],
+  simp_rw [← ennreal.coe_nnreal_eq], rw [ennreal.of_real_to_real],
+  rw [← lt_top_iff_ne_top], convert hfi.has_finite_integral, ext1 x,
+  rw [nnnorm_coe_eq_self]
+end
+
+/- replace all notation with
+
+notation `∫` binders `, ` r:(scoped:0 f, f) ` ∂` μ:70 := integral μ r
+
+The following code snippet should succeed:
+```
+import measure_theory.bochner_integration
+
+open measure_theory
+
+example {α} [measurable_space α] {f : α → ℝ} {μ : measure α} :
+  ∫ x, abs ∥ f x ∥ ∂μ = ∫ x, abs ∥ f x ∥ ∂μ :=
+rfl
+```
+
+-/
+
+
+namespace l1
+
+-- variables [normed_group β] [second_countable_topology β] [borel_space β]
+-- #print l1.coe_zero
+
+-- @[simp, norm_cast] lemma coe_fn_zero (x : α) : (0 : α →₁[μ] β) x = 0 :=
+-- _
+-- @[simp, norm_cast]
+-- lemma coe_fn_add (f g : α →₁[μ] β) : ((f + g : α →₁[μ] β) : α →ₘ[μ] β) = f + g :=
+-- _
+-- @[simp, norm_cast] lemma coe_fn_neg (f : α →₁[μ] β) : ((-f : α →₁[μ] β) : α →ₘ[μ] β) = -f := rfl
+-- @[simp, norm_cast]
+-- lemma coe_fn_sub (f g : α →₁[μ] β) : ((f - g : α →₁[μ] β) : α →ₘ[μ] β) = f - g := rfl
+
+
+lemma norm_eq_lintegral {f : α →₁[μ] E} : ∥ f ∥ = (∫⁻ x, (nnnorm (f x) : ennreal) ∂μ).to_real :=
+by simp [l1.norm_eq, ae_eq_fun.edist_zero_eq_coe, ← edist_eq_coe_nnnorm]
+
+lemma norm_sub_eq_lintegral {f g : α →₁[μ] E} :
+  ∥ f - g ∥ = (∫⁻ x, (nnnorm (f x - g x) : ennreal) ∂μ).to_real :=
+begin
+  simp_rw [l1.norm_eq, ae_eq_fun.edist_zero_eq_coe, ← edist_eq_coe_nnnorm],
+  rw lintegral_congr_ae,
+  refine (ae_eq_fun.coe_fn_sub (f : α →ₘ[μ] E) g).mp _,
+  apply eventually_of_forall, intros x hx, simp [hx]
+end
+
+lemma of_real_norm_eq_lintegral {f : α →₁[μ] E} :
+  ennreal.of_real ∥ f ∥ = ∫⁻ x, (nnnorm (f x) : ennreal) ∂μ :=
+by { rw [norm_eq_lintegral, ennreal.of_real_to_real], rw [← ennreal.lt_top_iff_ne_top],
+  exact f.has_finite_integral }
+
+lemma of_real_norm_sub_eq_lintegral {f g : α →₁[μ] E} :
+  ennreal.of_real ∥ f - g ∥ = ∫⁻ x, (nnnorm (f x - g x) : ennreal) ∂μ :=
+begin
+  simp_rw [of_real_norm_eq_lintegral, ← edist_eq_coe_nnnorm],
+  apply lintegral_congr_ae,
+  refine (ae_eq_fun.coe_fn_sub (f : α →ₘ[μ] E) g).mp _,
+  apply eventually_of_forall, intros x hx, simp only [l1.coe_coe, pi.sub_apply] at hx,
+  simp_rw [← hx, ← l1.coe_sub, l1.coe_coe]
+end
+
+
+end l1
+
+
+lemma ennnorm_integral_le_lintegral_norm (f : α → E) :
+  (nnnorm (∫ a, f a ∂μ) : ennreal) ≤ ∫⁻ a, (ennreal.of_real ∥f a∥) ∂μ :=
+by { rw [← of_real_norm_eq_coe_nnnorm], apply ennreal.of_real_le_of_le_to_real,
+  exact norm_integral_le_lintegral_norm f }
+
+
+lemma continuous_integral_integral [t2_space E] [sigma_finite μ] [sigma_finite ν] :
+  continuous (λ (f : α × β →₁[μ.prod ν] E), ∫ x, ∫ y, f (x, y) ∂ν ∂μ) :=
+begin
+  rw [continuous_iff_continuous_at], intro g,
+  refine tendsto_integral_of_l1 _ g.integrable.integral_prod_left
+    (eventually_of_forall $ λ h, h.integrable.integral_prod_left) _,
+  simp_rw [edist_eq_coe_nnnorm_sub,
+    ← lintegral_fn_integral_sub measurable_ennnorm (l1.integrable _) g.integrable],
+  refine tendsto_of_tendsto_of_tendsto_of_le_of_le tendsto_const_nhds _ (λ i, zero_le _) _,
+  { exact λ i, ∫⁻ x, ∫⁻ y, ennreal.of_real (∥i (x, y) - g (x, y)∥) ∂ν ∂μ },
+  swap, { exact λ i, lintegral_mono (λ x, ennnorm_integral_le_lintegral_norm _) },
+  simp_rw [of_real_norm_eq_coe_nnnorm],
+  show tendsto (λ (i : α × β →₁[μ.prod ν] E),
+    ∫⁻ x, ∫⁻ (y : β), nnnorm (i (x, y) - g (x, y)) ∂ν ∂μ) (𝓝 g) (𝓝 0),
+  have : ∀ (i : α × β →₁[μ.prod ν] E), measurable (λ z, (nnnorm (i z - g z) : ennreal)) :=
+  λ i, (i.measurable.sub g.measurable).ennnorm,
+  simp_rw [← lintegral_prod _ (this _), ← l1.of_real_norm_sub_eq_lintegral,
+    ← ennreal.of_real_zero],
+  refine (ennreal.continuous_of_real.tendsto 0).comp _,
+  rw [← tendsto_iff_norm_tendsto_zero], exact tendsto_id
+end
+
+lemma ae_measure_lt_top [sigma_finite ν] {s : set (α × β)} (hs : is_measurable s)
+  (h2s : (μ.prod ν) s < ⊤) : ∀ᵐ x ∂μ, ν (prod.mk x ⁻¹' s) < ⊤ :=
+by { simp_rw [prod_apply hs] at h2s, refine ae_lt_top hs.measure_prod_mk_left h2s }
+
+lemma integrable_measure_prod_mk_left [sigma_finite ν] {s : set (α × β)}
+  (hs : is_measurable s) (h2s : (μ.prod ν) s < ⊤) : integrable (λ x, (ν (prod.mk x ⁻¹' s)).to_real) μ :=
+begin
+  refine ⟨hs.measure_prod_mk_left.to_real, _⟩,
+  simp_rw [has_finite_integral, ennnorm_eq_of_real ennreal.to_real_nonneg],
+  convert h2s using 1, simp_rw [prod_apply hs], apply lintegral_congr_ae,
+  refine (ae_measure_lt_top hs h2s).mp _, apply eventually_of_forall, intros x hx,
+  rw [lt_top_iff_ne_top] at hx, simp [ennreal.of_real_to_real, hx],
+end
+
 
 /-- Fubini's Theorem: For integrable functions on `α × β`,
   the Bochner integral of `f` is equal to the iterated Bochner integral. -/
@@ -1737,22 +1937,17 @@ begin
   apply integrable.induction,
   { intros c s hs h2s, simp_rw [integral_indicator measurable_const hs, ← indicator_comp_right,
       function.comp, integral_indicator measurable_const (measurable_prod_mk_left hs),
-      set_integral_const, integral_smul_const, integral_to_real hs.measure_prod_mk_left,
-      prod_apply hs] },
+      set_integral_const], rw [integral_smul_const (integrable_measure_prod_mk_left hs h2s)],
+      simp_rw [integral_to_real hs.measure_prod_mk_left (ae_measure_lt_top hs h2s), prod_apply hs] },
   { intros f g hfg i_f i_g hf hg,
-    simp_rw [integral_add' i_f i_g, hf, hg],
-    rw [← integral_add' i_f.integral_prod_left i_g.integral_prod_left],
-    refine integral_congr_ae
-      (i_f.measurable.integral_prod_right'.add i_g.measurable.integral_prod_right')
-      (i_f.measurable.add i_g.measurable).integral_prod_right' _,
-    refine i_g.prod_right_ae.mp _, refine i_f.prod_right_ae.mp _, apply eventually_of_forall,
-    intros x h2f h2g, simp [integral_add h2f h2g] },
-  { refine is_closed_eq continuous_integral _,
-    sorry, },
+    simp_rw [integral_add' i_f i_g, hf, hg,
+      ← integral_add i_f.integral_prod_left i_g.integral_prod_left,
+      integral_integral_add' i_f i_g] },
+  { exact is_closed_eq continuous_integral continuous_integral_integral },
   { intros f g hfg i_f m_g hf, convert hf using 1,
     { exact integral_congr_ae m_g i_f.measurable hfg.symm },
     { refine integral_congr_ae m_g.integral_prod_right' i_f.measurable.integral_prod_right' _,
-      rw [eventually_eq, ae_prod] at hfg, refine hfg.mp _,
+      rw [eventually_eq] at hfg, refine (ae_prod hfg).mp _,
       apply eventually_of_forall, intros x hfgx,
       refine integral_congr_ae (m_g.comp measurable_prod_mk_left)
         (i_f.measurable.comp measurable_prod_mk_left) (ae_eq_symm hfgx) } }
