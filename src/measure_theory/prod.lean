@@ -391,8 +391,12 @@ lemma uniform_continuous_inf_nndist_pt (s : set α) :
 lemma continuous_inf_nndist_pt (s : set α) : continuous (λx, inf_nndist x s) :=
 (uniform_continuous_inf_nndist_pt s).continuous
 
-
 end metric
+
+-- NOT DONE
+/- fix: rename `to_fun_of_fun` to `coe_of_fun` (in `l1`) -/
+-- fix: integral_map_measure vs lintegral_map is inconsistent
+
 
 section measurable
 open measure_theory
@@ -404,63 +408,24 @@ lemma measurable.ennreal_tsum {ι α} [encodable ι] [measurable_space α]
   {f : ι → α → ennreal} (h : ∀ i, measurable (f i)) : measurable (λ x, ∑' i, f i x) :=
 by { simp_rw [ennreal.tsum_eq_supr_sum], apply measurable_supr, exact λ s, s.measurable_sum h }
 
-section
+-- lemma measurable_space_ennreal_def :
+--   generate_from (range Iio) = ennreal.measurable_space :=
+-- (borel_eq_generate_Iio _).symm
 
-variables {ι α : Type*} [measurable_space ι] [topological_space α] [second_countable_topology α]
-  [linear_order α] [order_topology α] [measurable_space α] [borel_space α]
-
-lemma measurable_space_ennreal_def :
-  generate_from (range Iio) = ennreal.measurable_space :=
-(borel_eq_generate_Iio _).symm
-
-lemma measurable_of_Iio {f : ι → α} (hf : ∀ x, is_measurable (f ⁻¹' Iio x)) :
-  measurable f :=
-begin
-  convert measurable_generate_from _,
-  exact borel_space.measurable_eq.trans (borel_eq_generate_Iio _),
-  rintro _ ⟨x, rfl⟩, exact hf x
-end
-
-lemma measurable_of_Ioi {f : ι → α} (hf : ∀ x, is_measurable (f ⁻¹' Ioi x)) :
-  measurable f :=
-begin
-  convert measurable_generate_from _,
-  exact borel_space.measurable_eq.trans (borel_eq_generate_Ioi _),
-  rintro _ ⟨x, rfl⟩, exact hf x
-end
-
-lemma measurable_of_Iic {f : ι → α} (hf : ∀ x, is_measurable (f ⁻¹' Iic x)) : measurable f :=
-begin
-  apply measurable_of_Ioi,
-  simp_rw [← compl_Iic, preimage_compl, is_measurable.compl_iff],
-  assumption
-end
-
-lemma measurable_of_Ici {f : ι → α} (hf : ∀ x, is_measurable (f ⁻¹' Ici x)) : measurable f :=
-begin
-  apply measurable_of_Iio,
-  simp_rw [← compl_Ici, preimage_compl, is_measurable.compl_iff],
-  assumption
-end
-
-end
 
 variables {α β γ : Type*} [measurable_space α] [measurable_space β] [measurable_space γ]
   {μ : measure α}
 
 
-/- fix: rename `to_fun_of_fun` to `coe_of_fun` (in `l1`) -/
--- fix: integral_map_measure vs lintegral_map is inconsistent
-
-lemma measurable.congr' {f g : α → β} {s : set α} {y : β} (hs : is_measurable s)
-  (h : ∀ x ∈ s, f x = g x) (hg : measurable g) (hf : ∀ x ∉ s, f x = y)
-  : measurable f :=
-begin
-  intros t ht,
-  by_cases hy : y ∈ t,
-  { convert (hg ht).union hs.compl, ext x, by_cases hx : x ∈ s; simp * },
-  { convert (hg ht).inter hs, ext x, by_cases hx : x ∈ s; simp * }
-end
+-- lemma measurable.congr' {f g : α → β} {s : set α} {y : β} (hs : is_measurable s)
+--   (h : ∀ x ∈ s, f x = g x) (hg : measurable g) (hf : ∀ x ∉ s, f x = y)
+--   : measurable f :=
+-- begin
+--   intros t ht,
+--   by_cases hy : y ∈ t,
+--   { convert (hg ht).union hs.compl, ext x, by_cases hx : x ∈ s; simp * },
+--   { convert (hg ht).inter hs, ext x, by_cases hx : x ∈ s; simp * }
+-- end
 
 lemma nnreal.measurable_coe : measurable (coe : nnreal → ℝ) :=
 nnreal.continuous_coe.measurable
@@ -528,16 +493,15 @@ measurable_inf_nndist.comp hf
 
 section
 variables {δ : Type*} [topological_space α] [borel_space α] [measurable_space δ]
+variables [complete_linear_order α] [order_topology α] [second_countable_topology α]
 
-lemma measurable_bsupr' [complete_linear_order α] [order_topology α] [second_countable_topology α]
-  {ι} (s : set ι) (f : ι → δ → α) (hs : countable s) (hf : ∀ i, measurable (f i)) :
-  measurable (λ b, ⨆ i ∈ s, f i b) :=
+lemma measurable_bsupr' {ι} (s : set ι) {f : ι → δ → α} (hs : countable s)
+  (hf : ∀ i, measurable (f i)) : measurable (λ b, ⨆ i ∈ s, f i b) :=
 by { haveI : encodable s := hs.to_encodable, simp only [supr_subtype'],
      exact measurable_supr (λ i, hf i) }
 
-lemma measurable_binfi' [complete_linear_order α] [order_topology α] [second_countable_topology α]
-  {ι} (s : set ι) (f : ι → δ → α) (hs : countable s) (hf : ∀ i, measurable (f i)) :
-  measurable (λ b, ⨅ i ∈ s, f i b) :=
+lemma measurable_binfi' {ι} (s : set ι) {f : ι → δ → α} (hs : countable s)
+  (hf : ∀ i, measurable (f i)) : measurable (λ b, ⨅ i ∈ s, f i b) :=
 by { haveI : encodable s := hs.to_encodable, simp only [infi_subtype'],
      exact measurable_infi (λ i, hf i) }
 
@@ -601,14 +565,6 @@ measurable.mul
 
 end
 
-lemma measurable.of_uncurry_left {f : α → β → γ} (hf : measurable (uncurry f)) {x : α} :
-  measurable (f x) :=
-hf.comp measurable_prod_mk_left
-
-lemma measurable.of_uncurry_right {f : α → β → γ} (hf : measurable (uncurry f)) {y : β} :
-  measurable (λ x, f x y) :=
-hf.comp measurable_prod_mk_right
-
 
 variables {E : Type*} [measurable_space E] [normed_group E] [second_countable_topology E]
   [normed_space ℝ E] [borel_space E]
@@ -632,8 +588,8 @@ lemma measurable_liminf' {ι ι'} [complete_linear_order β] [topological_space 
   measurable (λ x, liminf u (λ i, f i x)) :=
 begin
   simp_rw [hu.to_has_basis.liminf_eq_supr_infi],
-  refine measurable_bsupr' _ _ hu.countable _,
-  exact λ i, measurable_binfi' _ _ (hs i) hf
+  refine measurable_bsupr' _ hu.countable _,
+  exact λ i, measurable_binfi' _ (hs i) hf
 end
 
 lemma measurable_limsup' {ι ι'} [complete_linear_order β] [topological_space β] [second_countable_topology β]
@@ -642,8 +598,8 @@ lemma measurable_limsup' {ι ι'} [complete_linear_order β] [topological_space 
   measurable (λ x, limsup u (λ i, f i x)) :=
 begin
   simp_rw [hu.to_has_basis.limsup_eq_infi_supr],
-  refine measurable_binfi' _ _ hu.countable _,
-  exact λ i, measurable_bsupr' _ _ (hs i) hf
+  refine measurable_binfi' _ hu.countable _,
+  exact λ i, measurable_bsupr' _ (hs i) hf
 end
 
 lemma measurable_liminf [complete_linear_order β] [topological_space β] [second_countable_topology β]
@@ -704,6 +660,14 @@ measurable_const.prod_mk measurable_id
 
 lemma measurable_prod_mk_right {y : β} : measurable (λ x : α, (x, y)) :=
 measurable_id.prod_mk measurable_const
+
+lemma measurable.of_uncurry_left {f : α → β → γ} (hf : measurable (uncurry f)) {x : α} :
+  measurable (f x) :=
+hf.comp measurable_prod_mk_left
+
+lemma measurable.of_uncurry_right {f : α → β → γ} (hf : measurable (uncurry f)) {y : β} :
+  measurable (λ x, f x y) :=
+hf.comp measurable_prod_mk_right
 
 lemma measurable_prod {f : α → β × γ} : measurable f ↔
   measurable (λa, (f a).1) ∧ measurable (λa, (f a).2) :=
