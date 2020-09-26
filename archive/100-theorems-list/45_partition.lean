@@ -94,7 +94,7 @@ begin
 end
 
 def partial_odd_gf (n : ℕ) [field α] := ∏ i in range n, (1 - (X : power_series α)^(2*i+1))⁻¹
-def partial_distinct_gf (n : ℕ) := ∏ i in range n, (1 + (X : power_series ℚ)^(i+1))
+def partial_distinct_gf (n : ℕ) [field α] := ∏ i in range n, (1 + (X : power_series α)^(i+1))
 
 def odd_partition (n : ℕ) := {c : partition n // ∀ i ∈ c.blocks, ¬ nat.even i}
 def distinct_partition (n : ℕ) := {c : partition n // multiset.nodup c.blocks}
@@ -483,15 +483,15 @@ begin
   apply nat.two_not_dvd_two_mul_add_one,
 end
 
-lemma partial_distinct_gf_prop (n m : ℕ) :
-  (finset.card ((univ : finset (partition n)).filter (λ p, p.blocks.nodup ∧ ∀ j ∈ p.blocks, j ∈ (range m).map ⟨nat.succ, nat.succ_injective⟩)) : ℚ) =
-  coeff ℚ n (partial_distinct_gf m) :=
+lemma partial_distinct_gf_prop (n m : ℕ) [field α] :
+  (finset.card ((univ : finset (partition n)).filter (λ p, p.blocks.nodup ∧ ∀ j ∈ p.blocks, j ∈ (range m).map ⟨nat.succ, nat.succ_injective⟩)) : α) =
+  coeff α n (partial_distinct_gf m) :=
 begin
   simp_rw [partial_distinct_gf, two_series],
-  erw ← finset.prod_map (range m) ⟨_, nat.succ_injective⟩ (λ t, indicator_series ℚ {0, t}),
+  erw ← finset.prod_map (range m) ⟨_, nat.succ_injective⟩ (λ t, indicator_series α {0, t}),
   simp_rw [coeff_prod_range, coeff_indicator, prod_boole, sum_boole,
            ← @set.mem_def _ _ {0, _}, set.mem_insert_iff, set.mem_singleton_iff],
-  norm_cast,
+  congr' 1,
   refine card_eq_of_bijection _ _ _ _,
   { intros p i, apply multiset.count i p.blocks * i },
   { simp only [mem_filter, mem_cut, mem_univ, true_and, exists_prop, and_assoc,
@@ -575,6 +575,121 @@ begin
       simpa [nat.succ_ne_zero] using hp₂.2 0 a,
       intro,
       simpa [nat.succ_ne_zero] using hp₁.2 0 a },
+    { rwa nat.mul_left_inj at h,
+      exact nat.succ_pos i } },
+end
+
+lemma partial_gf_prop2 (n m : ℕ) [field α] :
+  (finset.card ((univ : finset (partition n)).filter (λ p, ∀ j ∈ p.blocks, j ∈ (range m).map ⟨nat.succ, nat.succ_injective⟩ ∧ p.blocks.count j = 1)) : α) =
+  coeff α n (partial_distinct_gf m) :=
+begin
+  rw ← partial_distinct_gf_prop,
+  congr' 3,
+  ext p,
+  split,
+    intro,
+    refine ⟨_, _⟩,
+      rw multiset.nodup_iff_count_le_one,
+      intro j,
+      by_cases j ∈ p.blocks,
+        rw (a j h).2,
+      rw multiset.count_eq_zero_of_not_mem h,
+      exact zero_le 1,
+    intros j hj, apply (a j hj).1,
+  intros t j hj,
+  split,
+    apply t.2 _ hj,
+  apply multiset.count_eq_one_of_mem t.1 hj,
+end
+
+lemma partial_gf_prop (n : ℕ) [field α] (s : finset ℕ) (hs : ∀ i ∈ s, 0 < i) :
+  (finset.card ((univ : finset (partition n)).filter (λ p, p.blocks.nodup ∧ ∀ j ∈ p.blocks, j ∈ s)) : α) =
+  (coeff α n) (∏ (i : ℕ) in s, indicator_series α {0, i}) :=
+begin
+  simp_rw [coeff_prod_range, coeff_indicator, prod_boole, sum_boole,
+           ← @set.mem_def _ _ {0, _}, set.mem_insert_iff, set.mem_singleton_iff],
+  congr' 1,
+  refine card_eq_of_bijection _ _ _ _,
+  { intros p i, apply multiset.count i p.blocks * i },
+  { simp only [mem_filter, mem_cut, mem_univ, true_and, exists_prop, and_assoc,
+               and_imp, nat.mul_eq_zero, function.embedding.coe_fn_mk, exists_imp_distrib],
+    rintro ⟨p, hp₁, hp₂⟩ hp₃ hp₄,
+    refine ⟨_, _, _⟩,
+    { rw auxy _ _ _ hp₂,
+      apply hp₄ },
+    { intros i hi,
+      left,
+      apply multiset.count_eq_zero_of_not_mem,
+      apply mt (hp₄ i) hi },
+    { intros i hi,
+      rw multiset.nodup_iff_count_le_one at hp₃,
+      specialize hp₃ i,
+      dsimp at *,
+      set k := multiset.count i p with q,
+      rw ← q at *,
+      interval_cases k,
+        left, left, assumption,
+      rw h, right, simp }
+       },
+  { simp only [mem_filter, mem_cut, mem_univ, exists_prop, true_and, and_assoc],
+    rintros f ⟨hf₁, hf₂, hf₃⟩,
+    refine ⟨⟨∑ i in s, multiset.repeat i (f i / i), _, _⟩, _, _, _⟩,
+    { intros i hi,
+      simp only [exists_prop, mem_sum, mem_map, function.embedding.coe_fn_mk] at hi,
+      rcases hi with ⟨t, ht, z⟩,
+      apply hs,
+      rwa multiset.eq_of_mem_repeat z },
+    { rw sum_sum,
+      simp_rw [multiset.sum_repeat, nat.nsmul_eq_mul],
+      have : ∀ i ∈ s, i ∣ f i,
+      { intros i hi,
+        cases hf₃ i hi; rw h,
+          exact dvd_zero i },
+      { rw sum_congr rfl (λ i hi, nat.div_mul_cancel (this i hi)),
+        apply hf₁ } },
+    { rw multiset.nodup_iff_count_le_one,
+      intro i,
+      dsimp,
+      rw ← sum_hom _ (multiset.count i),
+      simp_rw [count_repeat_ite],
+      simp only [sum_ite_eq],
+      split_ifs,
+      { cases hf₃ i h with h₁ h₁; rw h₁,
+          simp,
+        cases i,
+          simp,
+        apply le_of_eq,
+        apply nat.div_self,
+        exact nat.succ_pos i },
+      { norm_num } },
+    { intros i hi,
+      dsimp at hi,
+      rw mem_sum at hi,
+      rcases hi with ⟨_, _, _⟩,
+      cases multiset.eq_of_mem_repeat hi_h_h,
+      assumption },
+    { ext i,
+      dsimp,
+      rw ← sum_hom _ (multiset.count i),
+      simp_rw [count_repeat_ite],
+      simp only [sum_ite_eq],
+      split_ifs,
+      { apply nat.div_mul_cancel,
+        cases hf₃ i h; rw h_1,
+        apply dvd_zero },
+      { rw [zero_mul],
+        apply (hf₂ i h).symm } } },
+  { intros p₁ p₂ hp₁ hp₂ h,
+    apply partition.ext,
+    simp only [true_and, mem_univ, mem_filter] at hp₁ hp₂,
+    ext i,
+    rw function.funext_iff at h,
+    specialize h i,
+    cases i,
+    { rw multiset.count_eq_zero_of_not_mem,
+      rw multiset.count_eq_zero_of_not_mem,
+      intro, apply nat.lt_irrefl _ (hs _ (hp₂.2 0 a)),
+      intro, apply nat.lt_irrefl _ (hs _ (hp₁.2 0 a)) },
     { rwa nat.mul_left_inj at h,
       exact nat.succ_pos i } },
 end
