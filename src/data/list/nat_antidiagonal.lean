@@ -46,47 +46,5 @@ begin
   ext; simp,
 end
 
--- TODO: PICK A BETTER NAME.
-/--
-`big_diag n l` is the list of functions supported on a subset of `l` which sum to `n`.
-If `l` is a two-element set, this is essentially the same as `antidiagonal n`.
--/
-def big_diag {ι : Sort*} : ℕ → list ι → list (ι → ℕ)
-| 0 l := [λ _, 0]
-| (n+1) [] := []
-| (n+1) (x :: xs) := (antidiagonal (n+1)).bind (λ p, (big_diag p.2 xs).map (λ f x, f x + p.1))
-
-lemma sum_eq_zero : ∀ (l : list ℕ), l.sum = 0 ↔ ∀ x ∈ l, x = 0
-| [] := by simp
-| (x :: xs) := by simp [sum_eq_zero xs]
-
-lemma mem_big_diag {ι : Sort*} (n : ℕ) (l : list ι) (f : ι → ℕ) :
-  f ∈ big_diag n l ↔ (l.map f).sum = n ∧ ∀ x ∉ l, f x = 0 :=
-begin
-  cases n,
-  { change f ∈ [λ (i : ι), 0] ↔ _,
-    simp only [mem_singleton, sum_eq_zero, forall_mem_map_iff],
-    split,
-    { tidy },
-    { rintro ⟨hxl, hxr⟩, ext x, apply (em (x ∈ l)).elim (hxl x) (hxr x) } },
-  { induction l,
-    { simp [(nat.succ_ne_zero n).symm, big_diag] },
-    { simp [big_diag, l_ih],
-
-    }
-
-
-  }
-
-    -- split,
-    -- { tidy },
-    -- { rintros ⟨_, _⟩,
-    --   ext x,
-    --   by_cases x ∈ l,
-    --     have := a_left (f x),
-
-    -- }
-end
-
 end nat
 end list
