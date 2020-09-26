@@ -40,24 +40,22 @@ open power_series
 
 noncomputable theory
 
-/-- A composition of `n` is a list of positive integers summing to `n`. -/
-@[ext] structure partition (n : ℕ) :=
+/-- A partition of `n` is a multiset of positive integers summing to `n`. -/
+@[ext, derive decidable_eq] structure partition (n : ℕ) :=
 (blocks : multiset ℕ)
 (blocks_pos : ∀ {i}, i ∈ blocks → 0 < i)
 (blocks_sum : blocks.sum = n)
 
+/-- A composition induces a partition (just convert the list to a multiset). -/
 def composition_to_partition (n : ℕ) (c : composition n) : partition n :=
 { blocks := c.blocks,
   blocks_pos := λ i hi, c.blocks_pos hi,
   blocks_sum := by rw [multiset.coe_sum, c.blocks_sum] }
 
-instance (n : ℕ) : decidable_eq (partition n) :=
-begin
-  intros a b,
-  rw partition.ext_iff,
-  apply_instance,
-end
-
+/--
+Show there are finitely many partitions by considering the surjection from compositions to
+partitions.
+-/
 instance (n : ℕ) : fintype (partition n) :=
 begin
   apply fintype.of_surjective (composition_to_partition n),
@@ -78,11 +76,27 @@ subtype.fintype _
 instance (n : ℕ) : fintype (distinct_partition n) :=
 subtype.fintype _
 
-/-- Functions defined only on s, which sum to n. In other words, a partition of n indexed by s. -/
+/--
+Functions defined only on `s`, which sum to `n`. In other words, a partition of `n` indexed by `s`.
+Every function in here is finitely supported, and the support is a subset of `s`.
+This should be thought of as a generalisation of `finset.nat.antidiagonal`, where
+`antidiagonal n` is the same thing as `cut s n` if `s` has two elements.
+-/
 def cut {ι : Type*} (s : finset ι) (n : ℕ) : finset (ι → ℕ) :=
 finset.filter (λ f, s.sum f = n) ((s.pi (λ _, range (n+1))).map
   ⟨λ f i, if h : i ∈ s then f i h else 0,
    λ f g h, by { ext i hi, simpa [dif_pos hi] using congr_fun h i }⟩)
+
+def prod_equiv_bool_to {α : Type*} : (bool → α) ≃ α × α :=
+{ to_fun := λ f, (f ff, f tt),
+  inv_fun := λ x b, bool.cases_on b x.1 x.2,
+  left_inv := λ x,
+  begin
+    ext ⟨_ | _⟩,
+    refl,
+    refl,
+  end,
+  right_inv := λ ⟨x₁, x₂⟩, rfl }
 
 lemma mem_cut {ι : Type*} (s : finset ι) (n : ℕ) (f : ι → ℕ) :
   f ∈ cut s n ↔ s.sum f = n ∧ ∀ i ∉ s, f i = 0 :=
@@ -105,20 +119,55 @@ begin
       { apply (hf _ q).symm } } }
 end
 
+def equiv.finset_congr {α β : Type*} (e : α ≃ β) : finset α ≃ finset β :=
+{ to_fun := λ s, s.image e,
+  inv_fun := λ s, s.image e.symm,
+  left_inv := λ s,
+  begin
+    dsimp,
+    rw finset.image_image,
+    simp only [equiv.symm_comp_self, image_id],
+  end,
+  right_inv := λ s,
+  begin
+    dsimp,
+    rw finset.image_image,
+    simp only [equiv.self_comp_symm, image_id],
+  end }
+
+lemma cut_equiv_antidiag (n : ℕ) :
+  equiv.finset_congr prod_equiv_bool_to (cut univ n) = nat.antidiagonal n :=
+begin
+  ext ⟨x₁, x₂⟩,
+  simp only [equiv.finset_congr, equiv.coe_fn_mk, mem_image, ← equiv.eq_symm_apply],
+  simp [prod_equiv_bool_to, mem_cut, add_comm],
+end
+
+lemma pi_singleton {ι : Type*} (s : finset ι) (i : α) :
+  s.pi (λ _, ({i} : finset α)) = {λ _ _, i} :=
+begin
+  rw eq_singleton_iff_unique_mem,
+  split,
+    simp,
+  intros a ha,
+  rw [mem_pi] at ha,
+  ext,
+  simpa using ha x x_1,
+end
+
+/-- There is only one `cut` of 0. -/
 @[simp]
 lemma cut_zero {ι : Type*} (s : finset ι) :
   cut s 0 = {0} :=
 begin
-  ext f,
-  rw [mem_cut, mem_singleton, function.funext_iff, sum_eq_zero_iff],
-  split,
-    rintro ⟨h₁, h₂⟩,
-    intro a,
-    by_cases (a ∈ s),
-      apply h₁ a h,
-    apply h₂ a h,
-  intro h,
-  exact ⟨λ a _, h _, λ a _, h _⟩,
+  -- In general it's nice to prove things using `mem_cut` but in this case it's easier to just
+  -- use the definition.
+  rw [cut, range_one, pi_singleton, map_singleton, function.embedding.coe_fn_mk, filter_singleton,
+      if_pos, singleton_inj],
+  { ext, split_ifs; refl },
+  rw sum_eq_zero_iff,
+  intros x hx,
+  apply dif_pos hx,
 end
 
 @[simp]
