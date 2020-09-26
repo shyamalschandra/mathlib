@@ -10,36 +10,10 @@ noncomputable theory
 
 variables {α : Type*}
 
-/--
-The generating function for a sequence is just the power series whose coefficients are the
-sequence.
--/
-@[reducible]
-def generating_function (f : ℕ → α) : power_series α :=
-power_series.mk f
-
-@[simp]
-lemma constant_coeff_mk (f : ℕ → α) [semiring α] : constant_coeff _ (mk f) = f 0 :=
-begin
-  rw [← coeff_zero_eq_constant_coeff_apply, coeff_mk],
-end
-
-@[simp]
-lemma constant_coeff_smul (a : α) (f : power_series α) [semiring α] :
-  constant_coeff _ (a • f) = a * constant_coeff _ f :=
-begin
-  change constant_coeff _ (C _ _ * _) = _,
-  simp,
-end
 lemma eq_mul_inv_iff [field α] {a b c : power_series α} (h : constant_coeff _ c ≠ 0) :
   a = b * c⁻¹ ↔ a * c = b :=
 ⟨λ k, by simp [k, mul_assoc, power_series.inv_mul _ h],
  λ k, by simp [← k, mul_assoc, power_series.mul_inv _ h]⟩
-
-lemma mul_inv_eq_iff [field α] {a b c : power_series α} (h : constant_coeff _ c ≠ 0) :
-  a * c⁻¹ = b ↔ a = b * c :=
-⟨λ k, by simp [← k, mul_assoc, power_series.inv_mul _ h],
- λ k, by simp [k, mul_assoc, power_series.mul_inv _ h]⟩
 
 lemma eq_inv_iff [field α] {a b : power_series α} (h : constant_coeff _ b ≠ 0) : a = b⁻¹ ↔ a * b = 1 :=
 by rw [← eq_mul_inv_iff h, one_mul]
@@ -94,7 +68,7 @@ begin
 end
 
 def partial_odd_gf (n : ℕ) [field α] := ∏ i in range n, (1 - (X : power_series α)^(2*i+1))⁻¹
-def partial_distinct_gf (n : ℕ) [field α] := ∏ i in range n, (1 + (X : power_series α)^(i+1))
+def partial_distinct_gf (n : ℕ) [comm_semiring α] := ∏ i in range n, (1 + (X : power_series α)^(i+1))
 
 def odd_partition (n : ℕ) := {c : partition n // ∀ i ∈ c.blocks, ¬ nat.even i}
 def distinct_partition (n : ℕ) := {c : partition n // multiset.nodup c.blocks}
@@ -307,19 +281,7 @@ lemma card_eq_of_bijection {β : Type*} {s : finset α} {t : finset β}
   (hsurj : ∀ b ∈ t, ∃ (a ∈ s), f a = b)
   (hinj : ∀ a₁ a₂ ∈ s, f a₁ = f a₂ → a₁ = a₂) :
 s.card = t.card :=
-begin
-  have : s.image f = t,
-    ext, simp only [mem_image, exists_prop],
-    split,
-    rintro ⟨i, hi, rfl⟩,
-    apply hf,
-    apply hi,
-    simpa using hsurj a,
-  rw ← this,
-  rw card_image_of_inj_on,
-  intros,
-  apply hinj; assumption,
-end
+finset.card_congr (λ a _, f a) hf hinj hsurj
 
 lemma sum_multiset_count [decidable_eq α] [add_comm_monoid α] (s : multiset α) :
   s.sum = ∑ m in s.to_finset, s.count m •ℕ m :=
@@ -353,7 +315,7 @@ begin
   apply finset.induction_on s,
     simp,
   intros,
-  simp [finset.sum_insert a_1, a_2],
+  simp only [sum_insert a_1, a_2, multiset.mem_add, exists_prop, mem_insert],
   split,
   rintro (_ | ⟨_, _, _⟩),
     refine ⟨a, or.inl rfl, a_3⟩,
@@ -368,7 +330,7 @@ lemma sum_sum {β : Type*} [add_comm_monoid β] (f : α → multiset β) (s : fi
   multiset.sum (finset.sum s f) = ∑ x in s, (f x).sum :=
 (sum_hom s multiset.sum).symm
 
-lemma partial_gf_prop (α : Type*) [field α] (n : ℕ) (s : finset ℕ) (hs : ∀ i ∈ s, 0 < i) (c : ℕ → set ℕ) (hc : ∀ i ∉ s, 0 ∈ c i) :
+lemma partial_gf_prop (α : Type*) [comm_semiring α] (n : ℕ) (s : finset ℕ) (hs : ∀ i ∈ s, 0 < i) (c : ℕ → set ℕ) (hc : ∀ i ∉ s, 0 ∈ c i) :
   (finset.card ((univ : finset (partition n)).filter (λ p, (∀ j, p.blocks.count j ∈ c j) ∧ ∀ j ∈ p.blocks, j ∈ s)) : α) =
   (coeff α n) (∏ (i : ℕ) in s, indicator_series α ((* i) '' c i)) :=
 begin
@@ -518,7 +480,7 @@ begin
 end
 
 
-lemma partial_distinct_gf_prop (n m : ℕ) [field α] :
+lemma partial_distinct_gf_prop (n m : ℕ) [comm_semiring α] :
   (finset.card ((univ : finset (partition n)).filter (λ p, p.blocks.nodup ∧ ∀ j ∈ p.blocks, j ∈ (range m).map ⟨nat.succ, nat.succ_injective⟩)) : α) =
   coeff α n (partial_distinct_gf m) :=
 begin
@@ -552,8 +514,8 @@ begin
 end
 
 /--  If m is big enough, the partial product's coefficient counts the number of distinct partitions -/
-theorem distinct_gf_prop (n m : ℕ) (h : n < m + 1) :
-  (fintype.card (distinct_partition n) : ℚ) = coeff ℚ n (partial_distinct_gf m) :=
+theorem distinct_gf_prop (n m : ℕ) (h : n < m + 1) [comm_semiring α] :
+  (fintype.card (distinct_partition n) : α) = coeff α n (partial_distinct_gf m) :=
 begin
   erw [fintype.subtype_card, ← partial_distinct_gf_prop],
   congr' 2,
@@ -572,24 +534,23 @@ begin
   apply p.blocks_pos hi,
 end
 
-lemma same_gf (n : ℕ) :
-  partial_odd_gf n * (range n).prod (λ i, (1 - (X : power_series ℚ)^(n+i+1))) = partial_distinct_gf n :=
+lemma same_gf (n : ℕ) [field α] :
+  partial_odd_gf n * (range n).prod (λ i, (1 - (X : power_series α)^(n+i+1))) = partial_distinct_gf n :=
 begin
   rw [partial_odd_gf, partial_distinct_gf],
   induction n with n ih,
   { simp },
-  let Z : power_series ℚ := ∏ (x : ℕ) in range n, (1 - X^(2*x+1))⁻¹,
+  let Z : power_series α := ∏ (x : ℕ) in range n, (1 - X^(2*x+1))⁻¹,
   rw [prod_range_succ _ n, prod_range_succ _ n, prod_range_succ _ n, ← ih],
   clear ih,
   erw ← two_mul (n+1),
-  have : 1 - (X : power_series ℚ) ^ (2 * (n+1)) = (1 + X^(n+1)) * (1 - X^(n+1)),
+  have : 1 - (X : power_series α) ^ (2 * (n+1)) = (1 + X^(n+1)) * (1 - X^(n+1)),
     rw [← sq_sub_sq, one_pow, ← pow_mul, mul_comm],
   rw this, clear this,
-  change (_ * Z) * (((1 + X^(n+1)) * _) * _) = (1 + X^(n+1)) * (Z * _),
   rw [mul_assoc, mul_assoc, ← mul_assoc Z, mul_left_comm _ (Z * _), mul_left_comm _ Z,
       ← mul_assoc Z],
   congr' 1,
-  have := prod_range_succ' (λ x, 1 - (X : power_series ℚ)^(n.succ + x)) n,
+  have := prod_range_succ' (λ x, 1 - (X : power_series α)^(n.succ + x)) n,
   dsimp at this,
   simp_rw [← add_assoc, add_zero, mul_comm _ (1 - X ^ n.succ)] at this,
   erw [← this],
@@ -604,10 +565,10 @@ lemma coeff_prod_one_add (n : ℕ) [comm_semiring α] (φ ψ : power_series α) 
 begin
   rw [coeff_mul],
   have : ∑ p in nat.antidiagonal n, (0 : α) = 0,
-    rw [sum_const, nsmul_zero],
+    rw [sum_const_zero],
   rw ← this,
   apply sum_congr rfl _,
-  rintros pq hpq,
+  intros pq hpq,
   apply mul_eq_zero_of_right,
   apply coeff_of_lt_order,
   apply lt_of_le_of_lt _ h,
@@ -622,8 +583,8 @@ lemma coeff_prod_one_sub (n : ℕ) [comm_ring α] (φ ψ : power_series α) (h :
   coeff α n (φ * (1 - ψ)) = coeff α n φ :=
 by rw [mul_sub, mul_one, add_monoid_hom.map_sub, coeff_prod_one_add _ _ _ h, sub_zero]
 
-lemma same_coeffs (n m : ℕ) (h : m ≤ n) :
-  coeff ℚ m (partial_odd_gf n) = coeff ℚ m (partial_distinct_gf n) :=
+lemma same_coeffs (n m : ℕ) (h : m ≤ n) [field α] :
+  coeff α m (partial_odd_gf n) = coeff α m (partial_distinct_gf n) :=
 begin
   rw ← same_gf,
   set! k := n with h,
@@ -642,6 +603,7 @@ end
 
 theorem freek (n : ℕ) : fintype.card (odd_partition n) = fintype.card (distinct_partition n) :=
 begin
+  -- We need the counts to live in some field (which contains ℕ), so let's just use ℚ
   suffices : (fintype.card (odd_partition n) : ℚ) = fintype.card (distinct_partition n),
     norm_cast at this, assumption,
   rw distinct_gf_prop _ (n+1),
