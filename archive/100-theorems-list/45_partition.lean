@@ -23,18 +23,6 @@ by rw [eq_comm, eq_inv_iff h]
 open finset
 open_locale big_operators
 
-lemma count_repeat_ite {α : Type*} [decidable_eq α] (a b : α) (n : ℕ)  :
-  multiset.count a (multiset.repeat b n) = if (a = b) then n else 0 :=
-begin
-  split_ifs,
-    cases h,
-    rw multiset.count_repeat,
-  apply multiset.count_eq_zero_of_not_mem,
-  intro,
-  apply h,
-  apply multiset.eq_of_mem_repeat a_1,
-end
-
 open_locale classical
 open power_series
 
@@ -362,21 +350,20 @@ lemma mem_sum {β : Type*} {f : α → multiset β} (s : finset α) (b : β) :
   b ∈ ∑ x in s, f x ↔ ∃ a ∈ s, b ∈ f a :=
 begin
   apply finset.induction_on s,
-    simp,
-  intros,
-  simp only [sum_insert a_1, a_2, multiset.mem_add, exists_prop, mem_insert],
-  split,
-  rintro (_ | ⟨_, _, _⟩),
-    refine ⟨a, or.inl rfl, a_3⟩,
-  refine ⟨_, or.inr ‹_›, ‹_›⟩,
-  rintro ⟨_, (rfl | _), _⟩,
-  left, assumption,
-  right,
-  refine ⟨a_3_w, ‹_›, ‹_›⟩,
+  { simp },
+  { intros a t hi ih,
+    simp only [sum_insert ‹a ∉ t›, ih, multiset.mem_add, exists_prop, mem_insert],
+    split,
+    { rintro (hb | ⟨i, hi, hb⟩),
+      { exact ⟨a, or.inl rfl, hb⟩ },
+      { exact ⟨i, or.inr hi, hb⟩ } },
+    { rintro ⟨i, (rfl | ht), hb⟩,
+      { exact or.inl hb },
+      { exact or.inr ⟨_, ht, hb⟩, } } }
 end
 
 lemma sum_sum {β : Type*} [add_comm_monoid β] (f : α → multiset β) (s : finset α) :
-  multiset.sum (finset.sum s f) = ∑ x in s, (f x).sum :=
+  (s.sum f).sum = ∑ x in s, (f x).sum :=
 (sum_hom s multiset.sum).symm
 
 lemma partial_gf_prop (α : Type*) [comm_semiring α] (n : ℕ) (s : finset ℕ) (hs : ∀ i ∈ s, 0 < i) (c : ℕ → set ℕ) (hc : ∀ i ∉ s, 0 ∈ c i) :
@@ -395,10 +382,8 @@ begin
       apply hp₄ },
     { intros i hi,
       left,
-      apply multiset.count_eq_zero_of_not_mem,
-      apply mt (hp₄ i) hi },
-    { intros i hi,
-      refine ⟨_, hp₃ i, rfl⟩ } },
+      exact multiset.count_eq_zero_of_not_mem (mt (hp₄ i) hi) },
+    { exact λ i hi, ⟨_, hp₃ i, rfl⟩ } },
   { simp only [mem_filter, mem_cut, mem_univ, exists_prop, true_and, and_assoc],
     rintros f ⟨hf₁, hf₂, hf₃⟩,
     refine ⟨⟨∑ i in s, multiset.repeat i (f i / i), _, _⟩, _, _, _⟩,
@@ -417,30 +402,19 @@ begin
       { rw sum_congr rfl (λ i hi, nat.div_mul_cancel (this i hi)),
         apply hf₁ } },
     { intro i,
-      dsimp,
       rw ← sum_hom _ (multiset.count i),
-      simp_rw [count_repeat_ite],
-      simp only [sum_ite_eq],
-      split_ifs,
+      simp_rw [multiset.count_repeat, sum_ite_eq],
+      split_ifs with h h,
       { rcases hf₃ i h with ⟨w, hw₁, hw₂⟩,
-        rw ← hw₂,
-        dsimp,
-        rw nat.mul_div_cancel,
-        apply hw₁,
-        apply hs,
-        apply h },
-      { apply hc, assumption } },
+        rwa [← hw₂, nat.mul_div_cancel _ (hs i h)] },
+      { apply hc _ h } },
     { intros i hi,
-      dsimp at hi,
       rw mem_sum at hi,
-      rcases hi with ⟨_, _, _⟩,
-      cases multiset.eq_of_mem_repeat hi_h_h,
-      assumption },
+      rcases hi with ⟨j, hj₁, hj₂⟩,
+      rwa multiset.eq_of_mem_repeat hj₂ },
     { ext i,
-      dsimp,
       rw ← sum_hom _ (multiset.count i),
-      simp_rw [count_repeat_ite],
-      simp only [sum_ite_eq],
+      simp_rw [multiset.count_repeat, sum_ite_eq],
       split_ifs,
       { apply nat.div_mul_cancel,
         rcases hf₃ i h with ⟨w, hw, hw₂⟩,
@@ -456,10 +430,9 @@ begin
     cases i,
     { rw multiset.count_eq_zero_of_not_mem,
       rw multiset.count_eq_zero_of_not_mem,
-      intro a, exact nat.lt_irrefl 0 (hs 0 (hp₂.right 0 a)),
-      intro a, exact nat.lt_irrefl 0 (hs 0 (hp₁.right 0 a)) },
-    { rwa nat.mul_left_inj at h,
-      exact nat.succ_pos i } },
+      intro a, exact nat.lt_irrefl 0 (hs 0 (hp₂.2 0 a)),
+      intro a, exact nat.lt_irrefl 0 (hs 0 (hp₁.2 0 a)) },
+    { rwa nat.mul_left_inj i.succ_pos at h } },
 end
 
 lemma partial_odd_gf_prop (n m : ℕ) [field α] :
