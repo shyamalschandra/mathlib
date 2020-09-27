@@ -22,11 +22,7 @@ by rw [eq_comm, eq_inv_iff h]
 
 open finset
 open_locale big_operators
-
 open_locale classical
-open power_series
-
-noncomputable theory
 
 /-- A partition of `n` is a multiset of positive integers summing to `n`. -/
 @[ext, derive decidable_eq] structure partition (n : ℕ) :=
