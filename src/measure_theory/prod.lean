@@ -166,7 +166,7 @@ end ennreal
 section norm
 
 -- done
-lemma norm_of_nonneg {x : ℝ} (hx : 0 ≤ x) : ∥ x ∥ = x :=
+lemma norm_of_nonneg {x : ℝ} (hx : 0 ≤ x) : ∥x∥ = x :=
 by { rw [real.norm_eq_abs, abs_of_nonneg hx] }
 
 lemma nnnorm_coe_eq_self {x : ℝ≥0} : nnnorm (x : ℝ) = x :=
@@ -398,6 +398,21 @@ end metric
 -- fix: integral_map_measure vs lintegral_map is inconsistent
 
 
+section NEW
+
+variables {α : Type*}
+
+def ite_and {α} {p q : Prop} [decidable p] [decidable q] {x y : α} :
+  ite (p ∧ q) x y = ite p (ite q x y) y :=
+by { by_cases hp : p; by_cases hq : q; simp [hp, hq] }
+
+lemma indicator_prod_one {α β γ} [monoid_with_zero γ] {s : set α} {t : set β}
+  {x : α} {y : β} : (s.prod t).indicator (1 : _ → γ) (x, y) = s.indicator 1 x * t.indicator 1 y :=
+by simp [indicator, ← ite_and]
+
+end NEW
+
+
 section measurable
 open measure_theory
 
@@ -566,18 +581,17 @@ measurable.mul
 end
 
 
-variables {E : Type*} [measurable_space E] [normed_group E] [second_countable_topology E]
-  [normed_space ℝ E] [borel_space E]
-lemma measurable_smul_const {f : α → ℝ} {c : E} (hc : c ≠ 0) :
+section normed_space
+variables {𝕜 : Type*} [nondiscrete_normed_field 𝕜] [complete_space 𝕜] [measurable_space 𝕜]
+variables [borel_space 𝕜] [second_countable_topology 𝕜]
+variables {E : Type*} [normed_group E] [normed_space 𝕜 E] [measurable_space E] [borel_space E]
+variables [second_countable_topology E]
+
+lemma measurable_smul_const {f : α → 𝕜} {c : E} (hc : c ≠ 0) :
   measurable (λ x, f x • c) ↔ measurable f :=
-begin
-  refine ⟨λ hf, _, λ hf, hf.smul measurable_const⟩,
-  obtain ⟨g : E →L[ℝ] ℝ, h1g, h2g⟩ := exists_dual_vector c hc; [skip, apply_instance, apply_instance],
-  have := (g.measurable.comp hf).mul measurable_const, swap, exact ∥c∥⁻¹,
-  convert this, ext x,
-  have : ∥c∥ ≠ 0 := mt norm_eq_zero.mp hc,
-  simp [h2g, mul_inv_cancel_right' this, norm'],
-end
+sorry
+
+end normed_space
 
 
 
@@ -738,7 +752,7 @@ open simple_func
 
 lemma norm_approx_on_zero_le {f : β → α} (hf : measurable f) {s : set α} (h₀ : (0 : α) ∈ s)
   [separable_space s] (x : β) (n : ℕ) :
-  ∥ approx_on f hf s 0 h₀ n x ∥ ≤ ∥ f x ∥ + ∥ f x ∥ :=
+  ∥approx_on f hf s 0 h₀ n x∥ ≤ ∥f x∥ + ∥f x∥ :=
 begin
   have := edist_approx_on_y0_le hf h₀ x n,
   simp [edist_comm (0 : α), edist_eq_coe_nnnorm] at this,
@@ -788,11 +802,11 @@ namespace l1
 
 variables [normed_group β] [second_countable_topology β] [borel_space β]
 
-lemma norm_eq_lintegral {f : α →₁[μ] β} : ∥ f ∥ = (∫⁻ x, (nnnorm (f x) : ennreal) ∂μ).to_real :=
+lemma norm_eq_lintegral {f : α →₁[μ] β} : ∥f∥ = (∫⁻ x, (nnnorm (f x) : ennreal) ∂μ).to_real :=
 by simp [l1.norm_eq, ae_eq_fun.edist_zero_eq_coe, ← edist_eq_coe_nnnorm]
 
 lemma norm_sub_eq_lintegral {f g : α →₁[μ] β} :
-  ∥ f - g ∥ = (∫⁻ x, (nnnorm (f x - g x) : ennreal) ∂μ).to_real :=
+  ∥f - g∥ = (∫⁻ x, (nnnorm (f x - g x) : ennreal) ∂μ).to_real :=
 begin
   simp_rw [l1.norm_eq, ae_eq_fun.edist_zero_eq_coe, ← edist_eq_coe_nnnorm],
   rw lintegral_congr_ae,
@@ -801,12 +815,12 @@ begin
 end
 
 lemma of_real_norm_eq_lintegral {f : α →₁[μ] β} :
-  ennreal.of_real ∥ f ∥ = ∫⁻ x, (nnnorm (f x) : ennreal) ∂μ :=
+  ennreal.of_real ∥f∥ = ∫⁻ x, (nnnorm (f x) : ennreal) ∂μ :=
 by { rw [norm_eq_lintegral, ennreal.of_real_to_real], rw [← ennreal.lt_top_iff_ne_top],
   exact f.has_finite_integral }
 
 lemma of_real_norm_sub_eq_lintegral {f g : α →₁[μ] β} :
-  ennreal.of_real ∥ f - g ∥ = ∫⁻ x, (nnnorm (f x - g x) : ennreal) ∂μ :=
+  ennreal.of_real ∥f - g∥ = ∫⁻ x, (nnnorm (f x - g x) : ennreal) ∂μ :=
 begin
   simp_rw [of_real_norm_eq_lintegral, ← edist_eq_coe_nnnorm],
   apply lintegral_congr_ae,
@@ -864,7 +878,7 @@ import measure_theory.bochner_integration
 open measure_theory
 
 example {α} [measurable_space α] {f : α → ℝ} {μ : measure α} :
-  ∫ x, abs ∥ f x ∥ ∂μ = ∫ x, abs ∥ f x ∥ ∂μ :=
+  ∫ x, abs ∥f x∥ ∂μ = ∫ x, abs ∥f x∥ ∂μ :=
 rfl
 ```
 
@@ -877,32 +891,8 @@ by { rw [← of_real_norm_eq_coe_nnnorm], apply ennreal.of_real_le_of_le_to_real
 
 end integrals
 
-/-! ### Prod -/
-
 open measure_theory.measure
 
-/-- The product σ-algebra is generated from boxes, i.e. `s.prod t` for sets `s : set α` and
-  `t : set β`. -/
-lemma generate_from_prod : generate_from
-    (image2 set.prod { s | is_measurable s } { t | is_measurable t } : set (set (α × β))) =
-  prod.measurable_space :=
-begin
-  apply le_antisymm,
-  { apply generate_from_le, rintro _ ⟨s, t, hs, ht, rfl⟩, rw [prod_eq],
-    exact (measurable_fst hs).inter (measurable_snd ht) },
-  { refine sup_le _ _; rintro _ ⟨s, hs, rfl⟩; apply is_measurable_generate_from,
-    exact ⟨s, univ, hs, is_measurable.univ, prod_univ⟩,
-    exact ⟨univ, s, is_measurable.univ, hs, univ_prod⟩ }
-end
-
-lemma is_pi_system_prod :
-  is_pi_system (image2 set.prod { s : set α | is_measurable s } { t : set β | is_measurable t }) :=
-by { rintro _ _ ⟨s₁, t₁, hs₁, ht₁, rfl⟩ ⟨s₂, t₂, hs₂, ht₂, rfl⟩ _, rw [prod_inter_prod],
-     exact mem_image2_of_mem (hs₁.inter hs₂) (ht₁.inter ht₂) }
-
-lemma lintegral_comp {f : β → ennreal} {g : α → β} (hf : measurable f) (hg : measurable g) :
-  lintegral μ (f ∘ g) = ∫⁻ a, f a ∂(map g μ) :=
-(lintegral_map hf hg).symm
 
 /-- A measure `μ` is called σ-finite if there is a countable collection of sets
   `{ A i | i ∈ ℕ }` such that `μ (A i) < ⊤` and `⋃ i, A i = s`. -/
@@ -952,7 +942,8 @@ by simp_rw [spanning_sets, Union_accumulate,
   (classical.some_spec (exists_finite_spanning_sets μ)).2.2]
 
 namespace measure
-lemma supr_restrict_spanning_sets {μ : measure α} [sigma_finite μ] {s : set α}
+
+lemma supr_restrict_spanning_sets (μ : measure α) [sigma_finite μ] {s : set α}
   (hs : is_measurable s) :
   (⨆ i, μ.restrict (spanning_sets μ i) s) = μ s :=
 begin
@@ -961,12 +952,67 @@ begin
   { exact directed_of_sup (monotone_spanning_sets μ) }
 end
 
+
 end measure
+
+instance restrict.sigma_finite (μ : measure α) [sigma_finite μ] (s : set α) :
+  sigma_finite (μ.restrict s) :=
+begin
+  refine ⟨⟨spanning_sets μ, is_measurable_spanning_sets μ, λ i, _, Union_spanning_sets μ⟩⟩,
+  rw [restrict_apply (is_measurable_spanning_sets μ i)],
+  exact (measure_mono $ inter_subset_left _ _).trans_lt (measure_spanning_sets_lt_top μ i)
+end
+
+-- NEW
+
+
+lemma lintegral_comp {f : β → ennreal} {g : α → β} (hf : measurable f) (hg : measurable g) :
+  lintegral μ (f ∘ g) = ∫⁻ a, f a ∂(map g μ) :=
+(lintegral_map hf hg).symm
+
+instance {x : α} : probability_measure (dirac x) := ⟨dirac_apply_of_mem $ mem_univ x⟩
+
+instance sum.sigma_finite {ι} [fintype ι] (μ : ι → measure α) [∀ i, sigma_finite (μ i)] :
+  sigma_finite (sum μ) :=
+begin
+  refine ⟨⟨spanning_sets μ, is_measurable_spanning_sets μ, λ i, _, Union_spanning_sets μ⟩⟩,
+  rw [restrict_apply (is_measurable_spanning_sets μ i)],
+  exact (measure_mono $ inter_subset_left _ _).trans_lt (measure_spanning_sets_lt_top μ i)
+end
+
+
+/-- Every finite measure is σ-finite. -/
+@[priority 100]
+instance finite_measure.to_sigma_finite (μ : measure α) [finite_measure μ] : sigma_finite μ :=
+⟨⟨λ _, univ, λ _, is_measurable.univ, λ _, measure_lt_top μ _, Union_const _⟩⟩
+
+
+/-! ### Prod -/
+
+open measure_theory measure_theory.measure
+
+/-- The product σ-algebra is generated from boxes, i.e. `s.prod t` for sets `s : set α` and
+  `t : set β`. -/
+lemma generate_from_prod : generate_from
+    (image2 set.prod { s | is_measurable s } { t | is_measurable t } : set (set (α × β))) =
+  prod.measurable_space :=
+begin
+  apply le_antisymm,
+  { apply generate_from_le, rintro _ ⟨s, t, hs, ht, rfl⟩, rw [prod_eq],
+    exact (measurable_fst hs).inter (measurable_snd ht) },
+  { refine sup_le _ _; rintro _ ⟨s, hs, rfl⟩; apply is_measurable_generate_from,
+    exact ⟨s, univ, hs, is_measurable.univ, prod_univ⟩,
+    exact ⟨univ, s, is_measurable.univ, hs, univ_prod⟩ }
+end
+
+lemma is_pi_system_prod :
+  is_pi_system (image2 set.prod { s : set α | is_measurable s } { t : set β | is_measurable t }) :=
+by { rintro _ _ ⟨s₁, t₁, hs₁, ht₁, rfl⟩ ⟨s₂, t₂, hs₂, ht₂, rfl⟩ _, rw [prod_inter_prod],
+     exact mem_image2_of_mem (hs₁.inter hs₂) (ht₁.inter ht₂) }
+
+
 end measure_theory
 open measure_theory
-
-
-
 
 
 
@@ -976,10 +1022,6 @@ variables {α β E : Type*} [measurable_space α] [measurable_space β]
 variables {μ : measure α} {ν : measure β}
 variables [normed_group E] [measurable_space E]
 open measure_theory.measure
-
-
-
-
 
 lemma is_measurable.measure_prod_mk_left_finite [finite_measure ν] {s : set (α × β)}
   (hs : is_measurable s) : measurable (λ x, ν (prod.mk x ⁻¹' s)) :=
@@ -1002,7 +1044,7 @@ lemma is_measurable.measure_prod_mk_left [sigma_finite ν] {s : set (α × β)}
   (hs : is_measurable s) : measurable (λ x, ν (prod.mk x ⁻¹' s)) :=
 begin
   have : ∀ x, is_measurable (prod.mk x ⁻¹' s) := λ x, measurable_prod_mk_left hs,
-  simp only [← supr_restrict_spanning_sets, this],
+  simp only [← supr_restrict_spanning_sets ν, this],
   apply measurable_supr, intro i,
   haveI : fact _ := measure_spanning_sets_lt_top ν i,
   exact hs.measure_prod_mk_left_finite
@@ -1054,7 +1096,7 @@ lemma measurable.lintegral_prod_right [sigma_finite ν] {f : α → β → ennre
   (hf : measurable (uncurry f)) : measurable (λ x, ∫⁻ y, f x y ∂ν) :=
 hf.lintegral_prod_right'
 
-/-- The Lebesgue intergral is measurable This shows that the integrand of (the right-hand-side of)
+/-- The Lebesgue intergral is measurable. This shows that the integrand of (the right-hand-side of)
   the symmetric version of Tonelli's theorem is measurable. -/
 lemma measurable.lintegral_prod_left' [sigma_finite μ] {f : α × β → ennreal}
   (hf : measurable f) : measurable (λ y, ∫⁻ x, f (x, y) ∂μ) :=
@@ -1122,9 +1164,6 @@ end
 
 namespace measure_theory
 
-
-
-
 namespace measure
 
 /-- The product of two measures. -/
@@ -1169,6 +1208,16 @@ section both_sigma_finite
 
 variables [sigma_finite μ] [sigma_finite ν]
 
+instance prod.sigma_finite : sigma_finite (μ.prod ν) :=
+⟨⟨λ n, (spanning_sets μ n).prod (spanning_sets ν n),
+  λ n, (is_measurable_spanning_sets μ n).prod (is_measurable_spanning_sets ν n),
+  λ n, by { simp_rw [prod_prod (is_measurable_spanning_sets μ n) (is_measurable_spanning_sets ν n)],
+    apply ennreal.mul_lt_top (measure_spanning_sets_lt_top μ n) (measure_spanning_sets_lt_top ν n) },
+  by { simp_rw [Union_prod_of_monotone (monotone_spanning_sets μ) (monotone_spanning_sets ν),
+    Union_spanning_sets, univ_prod_univ] }⟩⟩
+
+/- This proof would be easier if `spanning_sets (μ.prod ν)` where equal to the ones we put in the
+  instance of `prod.sigma_finite` -/
 lemma prod_unique {μν₁ μν₂ : measure (α × β)}
   (h₁ : ∀ s t, is_measurable s → is_measurable t → μν₁ (s.prod t) = μ s * ν t)
   (h₂ : ∀ s t, is_measurable s → is_measurable t → μν₂ (s.prod t) = μ s * ν t) : μν₁ = μν₂ :=
@@ -1184,9 +1233,13 @@ begin
   { rintro _ ⟨s, t, hs, ht, rfl⟩, simp * at * }
 end
 
+lemma prod_eq {μν : measure (α × β)}
+  (h : ∀ s t, is_measurable s → is_measurable t → μν (s.prod t) = μ s * ν t) : μ.prod ν = μν :=
+prod_unique (λ s t hs ht, prod_prod hs ht) h
+
 lemma prod_swap : map prod.swap (μ.prod ν) = ν.prod μ :=
 begin
-  refine prod_unique _ (λ _ _, prod_prod),
+  refine (prod_eq _).symm,
   intros s t hs ht,
   simp_rw [map_apply measurable_swap (hs.prod ht), preimage_swap_prod, prod_prod ht hs, mul_comm]
 end
@@ -1196,15 +1249,31 @@ lemma prod_apply_symm {s : set (α × β)} (hs : is_measurable s) :
 by { rw [← prod_swap, map_apply measurable_swap hs],
      simp only [prod_apply (measurable_swap hs)], refl }
 
-instance prod.sigma_finite : sigma_finite (μ.prod ν) :=
-⟨⟨λ n, (spanning_sets μ n).prod (spanning_sets ν n),
-  λ n, (is_measurable_spanning_sets μ n).prod (is_measurable_spanning_sets ν n),
-  λ n, by { simp_rw [prod_prod (is_measurable_spanning_sets μ n) (is_measurable_spanning_sets ν n)],
-    apply ennreal.mul_lt_top (measure_spanning_sets_lt_top μ n) (measure_spanning_sets_lt_top ν n) },
-  by { simp_rw [Union_prod_of_monotone (monotone_spanning_sets μ) (monotone_spanning_sets ν),
-    Union_spanning_sets, univ_prod_univ] }⟩⟩
+lemma prod_restrict {s : set α} {t : set β} (hs : is_measurable s) (ht : is_measurable t) :
+  (μ.restrict s).prod (ν.restrict t) = (μ.prod ν).restrict (s.prod t) :=
+begin
+  refine prod_eq (λ s' t' hs' ht', _),
+  simp_rw [restrict_apply (hs'.prod ht'), prod_inter_prod, prod_prod (hs'.inter hs) (ht'.inter ht),
+    restrict_apply hs', restrict_apply ht'],
+end
+
+lemma prod_dirac {x : α} {y : β} : (dirac x).prod (dirac y) = dirac (x, y) :=
+begin
+  refine prod_eq (λ s t hs ht, _),
+  simp_rw [dirac_apply _ (hs.prod ht), dirac_apply _ hs, dirac_apply _ ht, indicator_prod_one],
+end
+
+lemma prod_sum {ι : Type*} (μ : ι → measure α) (ν : ι → measure α) :
+  (sum μ).prod (sum ν) = sum (λ i, (μ i).prod (ν i)) :=
+begin
+  refine prod_eq (λ s t hs ht, _),
+  simp_rw [dirac_apply _ (hs.prod ht), dirac_apply _ hs, dirac_apply _ ht, indicator_prod_one],
+end
+
 
 end both_sigma_finite
+
+
 
 end measure
 
@@ -1273,10 +1342,10 @@ lemma integrable_swap_iff [sigma_finite μ] [sigma_finite ν] ⦃f : α × β �
 
 lemma has_finite_integral_prod_iff [sigma_finite ν] ⦃f : α × β → E⦄ (h1f : measurable f) :
   (∀ᵐ x ∂ μ, has_finite_integral (λ y, f (x, y)) ν) ∧
-    has_finite_integral (λ x, ∫ y, ∥ f (x, y) ∥ ∂ν) μ ↔ has_finite_integral f (μ.prod ν) :=
+    has_finite_integral (λ x, ∫ y, ∥f (x, y)∥ ∂ν) μ ↔ has_finite_integral f (μ.prod ν) :=
 begin
   simp only [has_finite_integral, lintegral_prod _ h1f.ennnorm],
-  have : ∀ x, ∀ᵐ y ∂ν, 0 ≤ ∥ f (x, y) ∥ := λ x, eventually_of_forall (λ y, norm_nonneg _),
+  have : ∀ x, ∀ᵐ y ∂ν, 0 ≤ ∥f (x, y)∥ := λ x, eventually_of_forall (λ y, norm_nonneg _),
   simp_rw [integral_eq_lintegral_of_nonneg_ae (this _) (h1f.norm.comp measurable_prod_mk_left),
     ennnorm_eq_of_real (ennreal.to_real_nonneg), of_real_norm_eq_coe_nnnorm],
   -- this fact looks to specialized to be its own lemma
@@ -1293,13 +1362,13 @@ section
 variables [opens_measurable_space E]
 
 lemma integrable_prod_iff [sigma_finite ν] ⦃f : α × β → E⦄ (h1f : measurable f) :
-  (∀ᵐ x ∂ μ, integrable (λ y, f (x, y)) ν) ∧ integrable (λ x, ∫ y, ∥ f (x, y) ∥ ∂ν) μ ↔
+  (∀ᵐ x ∂ μ, integrable (λ y, f (x, y)) ν) ∧ integrable (λ x, ∫ y, ∥f (x, y)∥ ∂ν) μ ↔
   integrable f (μ.prod ν) :=
 by simp only [integrable, h1f, h1f.comp measurable_prod_mk_left, h1f.norm.integral_prod_right',
   true_and, has_finite_integral_prod_iff]
 
 lemma integrable_prod_iff' [sigma_finite μ] [sigma_finite ν] ⦃f : α × β → E⦄ (h1f : measurable f) :
-  (∀ᵐ y ∂ ν, integrable (λ x, f (x, y)) μ) ∧ integrable (λ y, ∫ x, ∥ f (x, y) ∥ ∂μ) ν ↔
+  (∀ᵐ y ∂ ν, integrable (λ x, f (x, y)) μ) ∧ integrable (λ y, ∫ x, ∥f (x, y)∥ ∂μ) ν ↔
   integrable f (μ.prod ν) :=
 by { convert integrable_prod_iff (h1f.comp measurable_swap) using 1, rw [integrable_swap_iff],
   apply_instance }
@@ -1313,11 +1382,11 @@ lemma integrable.prod_right_ae [sigma_finite μ] [sigma_finite ν] ⦃f : α × 
 hf.swap.prod_left_ae
 
 lemma integrable.integral_norm_prod_left [sigma_finite ν] ⦃f : α × β → E⦄
-  (hf : integrable f (μ.prod ν)) : integrable (λ x, ∫ y, ∥ f (x, y) ∥ ∂ν) μ :=
+  (hf : integrable f (μ.prod ν)) : integrable (λ x, ∫ y, ∥f (x, y)∥ ∂ν) μ :=
 ((integrable_prod_iff hf.measurable).mpr hf).2
 
 lemma integrable.integral_norm_prod_right [sigma_finite μ] [sigma_finite ν] ⦃f : α × β → E⦄
-  (hf : integrable f (μ.prod ν)) : integrable (λ y, ∫ x, ∥ f (x, y) ∥ ∂μ) ν :=
+  (hf : integrable f (μ.prod ν)) : integrable (λ y, ∫ x, ∥f (x, y)∥ ∂μ) ν :=
 hf.swap.integral_norm_prod_left
 
 end
