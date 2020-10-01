@@ -503,33 +503,6 @@ lemma set.finite.summable_compl_iff {s : set β} (hs : s.finite) :
   summable (f ∘ coe : sᶜ → α) ↔ summable f :=
 (hs.summable f).summable_compl_iff
 
-lemma summable.vanishing (hf : summable f) ⦃e⦄ (he : e ∈ 𝓝 (0:α)) :
-  (∃s:finset β, ∀t, disjoint t s → ∑ b in t, f b ∈ e) :=
-begin
-  rcases hf with ⟨y, hy⟩,
-  have := continuous_sub.tendsto (y, y),
-  simp only [sub_self, nhds_prod_eq, (𝓝 y).basis_sets.prod_self.tendsto_left_iff,
-    set.forall_prod_set, id] at this,
-  rcases this e he with ⟨u, hu, he⟩,
-  rw [has_sum, tendsto_at_top'] at hy,
-  rcases hy u hu with ⟨s, hs⟩,
-  refine ⟨s, λ t ht, _⟩,
-  convert he _ (hs (t ∪ s) (subset_union_right _ _)) _ (hs s le_rfl),
-  rw [sum_union ht, add_sub_cancel]
-end
-
-/--
-Series divergence test: if `f` is a convergent series, then `f x` tends to `0` along `cofinite`.
--/
-lemma summable.tendsto_cofinite_zero (hf : summable f) : tendsto f cofinite (𝓝 0) :=
-begin
-  intros e he,
-  rw [filter.mem_map],
-  rcases hf.vanishing he with ⟨s, hs⟩,
-  refine s.eventually_cofinite_nmem.mono (λ x hx, _),
-  by simpa using hs {x} (singleton_disjoint.2 hx)
-end
-
 section tsum
 variables [t2_space α]
 
