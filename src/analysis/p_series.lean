@@ -14,6 +14,11 @@ The proof is based on the
 test in `nnreal.summable_condensed_iff` and `summable_condensed_iff_of_nonneg`, then use it to
 prove `summable_one_div_rpow`.
 
+## TODO
+
+It should be easy to generalize arguments to Schlömilch's generalization of the Cauchy condensation
+test once we need it.
+
 ## Tags
 
 p-series, Cauchy condensation test
@@ -98,6 +103,7 @@ end ennreal
 
 namespace nnreal
 
+/-- Cauchy condensation test for a series of `nnreal` version. -/
 lemma summable_condensed_iff {f : ℕ → ℝ≥0} (hf : ∀ ⦃m n⦄, 0 < m → m ≤ n → f n ≤ f m) :
   summable (λ k : ℕ, (2 ^ k) * f (2 ^ k)) ↔ summable f :=
 begin
@@ -114,6 +120,7 @@ end
 
 end nnreal
 
+/-- Cauchy condensation test for series of nonnegative real numbers. -/
 lemma summable_condensed_iff_of_nonneg {f : ℕ → ℝ} (h_nonneg : ∀ n, 0 ≤ f n)
   (h_mono : ∀ ⦃m n⦄, 0 < m → m ≤ n → f n ≤ f m) :
   summable (λ k : ℕ, (2 ^ k) * f (2 ^ k)) ↔ summable f :=
@@ -127,6 +134,8 @@ end
 
 open real
 
+/-- Test for congergence of the `p`-series: the real-valued series `∑' n : ℕ, 1 / n ^ p` converges
+if and only if `1 < p`. -/
 @[simp] lemma summable_one_div_rpow {p : ℝ} : summable (λ n, 1 / n ^ p : ℕ → ℝ) ↔ 1 < p :=
 begin
   cases le_or_lt 0 p with hp hp,
