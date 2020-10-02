@@ -1,4 +1,23 @@
+/-
+Copyright (c) 2020 Yury G. Kudryashov. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Author: Yury G. Kudryashov
+-/
 import analysis.special_functions.pow
+
+/-!
+# Convergence of `p`-series
+
+In this file we prove that the series `∑' k in ℕ, 1 / k ^ p` converges if and only if `p > 1`.
+The proof is based on the
+[Cauchy condensation test](https://en.wikipedia.org/wiki/Cauchy_condensation_test). We prove this
+test in `nnreal.summable_condensed_iff` and `summable_condensed_iff_of_nonneg`, then use it to
+prove `summable_one_div_rpow`.
+
+## Tags
+
+p-series, Cauchy condensation test
+-/
 
 open filter
 open_locale big_operators ennreal nnreal topological_space
