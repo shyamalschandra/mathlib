@@ -1,7 +1,7 @@
 import analysis.special_functions.pow
 
 open filter
-open_locale big_operators ennreal nnreal
+open_locale big_operators ennreal nnreal topological_space
 
 namespace finset
 
@@ -108,21 +108,31 @@ end
 
 open real
 
-lemma summable_one_div_rpow {p : ℝ} : summable (λ n, 1 / n ^ p : ℕ → ℝ) ↔ 1 < p :=
+@[simp] lemma summable_one_div_rpow {p : ℝ} : summable (λ n, 1 / n ^ p : ℕ → ℝ) ↔ 1 < p :=
 begin
-  by_cases hp : 0 ≤ p,
+  cases le_or_lt 0 p with hp hp,
   { rw ← summable_condensed_iff_of_nonneg,
     { simp_rw [nat.cast_pow, nat.cast_two, ← rpow_nat_cast, ← rpow_mul zero_lt_two.le, mul_comm _ p,
         rpow_mul zero_lt_two.le, rpow_nat_cast, ← one_div_pow, ← mul_pow,
         summable_geometric_iff_norm_lt_1, ← div_eq_mul_one_div],
       nth_rewrite 0 [← rpow_one 2],
-      nth_rewrite 3 [← one_rpow (1 - p)],
-      rw [← rpow_sub zero_lt_two, norm_eq_abs, abs_of_pos (rpow_pos_of_pos zero_lt_two _)],
-      sorry },
+      rw [← rpow_sub zero_lt_two, norm_eq_abs, abs_of_pos (rpow_pos_of_pos zero_lt_two _),
+        rpow_lt_one_iff zero_lt_two.le],
+      norm_num },
     { intro n,
       exact div_nonneg zero_le_one (rpow_nonneg_of_nonneg n.cast_nonneg _) },
     { intros m n hm hmn,
       exact div_le_div_of_le_left zero_le_one (rpow_pos_of_pos (nat.cast_pos.2 hm) _)
          (rpow_le_rpow m.cast_nonneg (nat.cast_le.2 hmn) hp) } },
-  {  }
+  { suffices : ¬summable (λ n, 1 / n ^ p : ℕ → ℝ),
+    { have : ¬(1 < p) := λ hp₁, hp.not_le (zero_le_one.trans hp₁.le),
+      simpa [this, -one_div] },
+    { intro h,
+      obtain ⟨k : ℕ, hk₁ : (1 / k ^ p : ℝ) < 1, hk₀ : k ≠ 0⟩ :=
+        ((h.tendsto_cofinite_zero.eventually (gt_mem_nhds zero_lt_one)).and
+          (eventually_cofinite_ne 0)).exists,
+      apply hk₀,
+      rw [← zero_lt_iff_ne_zero, ← @nat.cast_pos ℝ] at hk₀,
+      simpa [inv_lt_one, (rpow_pos_of_pos hk₀ _).not_le, one_lt_rpow_iff_of_pos hk₀, hp, hp.not_lt,
+        hk₀] using hk₁ } }
 end
