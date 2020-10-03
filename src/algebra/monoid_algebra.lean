@@ -4,6 +4,11 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Johannes Hölzl, Yury G. Kudryashov, Scott Morrison
 -/
 import algebra.algebra.basic
+import init.meta.interactive
+import init.meta.converter
+
+
+meta def conv.interactive.exact := tactic.interactive.exact
 
 /-!
 # Monoid algebras
@@ -539,6 +544,43 @@ lemma single_mul_single {a₁ a₂ : G} {b₁ b₂ : k} :
   (sum_single_index (by rw [mul_zero, single_zero]))
 
 section
+
+/-- Like `finsupp.map_domain_add`, but for the convolutive multiplication we define in this file -/
+lemma map_domain_mul {α : Type*} {β : Type*} {α₂ : Type*} [semiring β] [add_monoid α] [add_monoid α₂] {x y : add_monoid_algebra β α}
+  (f : α → α₂) (hf : ∀ x y, f x + f y = f (x + y)):
+  (map_domain f (x * y : add_monoid_algebra β α) : add_monoid_algebra β α₂) =
+    (map_domain f x * map_domain f y : add_monoid_algebra β α₂) :=
+begin
+  simp only [mul_def, map_domain_sum, map_domain_single],
+  conv_rhs {
+    for (finsupp.sum _ _) [2] {
+      rw finsupp.sum_map_domain_index _ _,
+      skip,
+      exact λ a, by { simp, },
+      exact λ a b c, by { simp [mul_add], }
+    },
+    for (finsupp.sum _ _) [1] {
+      rw finsupp.sum_map_domain_index _ _,
+      skip,
+      exact λ a, by { simp, },
+      exact λ a b c, by { simp [add_mul], },
+    },
+  },
+  simp_rw hf,
+end
+
+/-- The equivalence between `add_monoid_algebra` and `monoid_algebra` in terms of `multiplicative` -/
+protected def to_multiplicative :
+  add_monoid_algebra k G ≃+* monoid_algebra k (multiplicative G) :=
+{ map_mul' := λ x y, by {
+    simp only [finsupp.dom_congr],
+    rw map_domain_mul _,
+    intros p q,
+    -- At this point the pretty-printing of the goal is nonsense, containing `p + q` despite
+    -- the fact there is no obvious `has_add (multiplicative G)`.
+    simp only [←to_add_mul],
+    refl, },
+  ..finsupp.dom_congr multiplicative.to_add }
 
 variables (k G)
 
