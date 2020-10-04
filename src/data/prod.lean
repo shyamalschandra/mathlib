@@ -84,9 +84,6 @@ swap_swap
 @[simp] lemma swap_right_inverse : function.right_inverse (@swap α β) swap :=
 swap_swap
 
-lemma swap_injective : function.injective (@swap α β) :=
-function.left_inverse.injective swap_left_inverse
-
 lemma eq_iff_fst_eq_snd_eq : ∀{p q : α × β}, p = q ↔ (p.1 = q.1 ∧ p.2 = q.2)
 | ⟨p₁, p₂⟩ ⟨q₁, q₂⟩ := by simp
 
