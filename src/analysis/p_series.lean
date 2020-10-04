@@ -161,8 +161,8 @@ begin
           (eventually_cofinite_ne 0)).exists,
       apply hk₀,
       rw [← zero_lt_iff_ne_zero, ← @nat.cast_pos ℝ] at hk₀,
-      simpa [(rpow_pos_of_pos hk₀ _).not_le, one_lt_rpow_iff_of_pos hk₀, hp, hp.not_lt, hk₀]
-        using hk₁ } }
+      simpa [inv_lt_one_iff_of_pos (rpow_pos_of_pos hk₀ _), one_lt_rpow_iff_of_pos hk₀, hp,
+        hp.not_lt, hk₀] using hk₁ } }
 end
 
 @[simp] lemma nnreal.summable_one_div_rpow {p : ℝ} : summable (λ n, (n ^ p)⁻¹ : ℕ → ℝ≥0) ↔ 1 < p :=
