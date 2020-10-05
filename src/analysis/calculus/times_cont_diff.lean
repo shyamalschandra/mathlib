@@ -1228,6 +1228,11 @@ lemma times_cont_diff_within_at.times_cont_diff_at {n : with_top ℕ}
   times_cont_diff_at 𝕜 n f x :=
 by rwa [times_cont_diff_at, ← times_cont_diff_within_at_inter hx, univ_inter]
 
+lemma times_cont_diff_at.congr_of_eventually_eq {n : with_top ℕ}
+  (h : times_cont_diff_at 𝕜 n f x) (hg : f₁ =ᶠ[𝓝 x] f) :
+  times_cont_diff_at 𝕜 n f₁ x :=
+h.congr_of_eventually_eq' (by rwa nhds_within_univ) (mem_univ x)
+
 lemma times_cont_diff_at.of_le {m n : with_top ℕ}
   (h : times_cont_diff_at 𝕜 n f x) (hmn : m ≤ n) :
   times_cont_diff_at 𝕜 m f x :=
@@ -1687,8 +1692,12 @@ series in `g ⁻¹' s`, whose `k`-th term is given by `p k (g v₁, ..., g vₖ)
 lemma has_ftaylor_series_up_to_on.comp_continuous_linear_map {n : with_top ℕ}
   (hf : has_ftaylor_series_up_to_on n f p s) (g : G →L[𝕜] E) :
   has_ftaylor_series_up_to_on n (f ∘ g)
-    (λ x k, (p (g x) k).comp_continuous_linear_map 𝕜 E g) (g ⁻¹' s) :=
+    (λ x k, (p (g x) k).comp_continuous_linear_map (λ _, g)) (g ⁻¹' s) :=
 begin
+  let A : Π m : ℕ, (E [×m]→L[𝕜] F) → (G [×m]→L[𝕜] F) :=
+    λ m h, h.comp_continuous_linear_map (λ _, g),
+  have hA : ∀ m, is_bounded_linear_map 𝕜 (A m) :=
+    λ m, is_bounded_linear_map_continuous_multilinear_map_comp_linear g,
   split,
   { assume x hx,
     simp only [(hf.zero_eq (g x) hx).symm, function.comp_app],
@@ -1696,19 +1705,13 @@ begin
     rw continuous_linear_map.map_zero,
     refl },
   { assume m hm x hx,
-    let A : (E [×m]→L[𝕜] F) → (G [×m]→L[𝕜] F) := λ h, h.comp_continuous_linear_map 𝕜 E g,
-    have hA : is_bounded_linear_map 𝕜 A :=
-      is_bounded_linear_map_continuous_multilinear_map_comp_linear g,
-    convert (hA.has_fderiv_at).comp_has_fderiv_within_at x
+    convert ((hA m).has_fderiv_at).comp_has_fderiv_within_at x
       ((hf.fderiv_within m hm (g x) hx).comp x (g.has_fderiv_within_at) (subset.refl _)),
     ext y v,
     change p (g x) (nat.succ m) (g ∘ (cons y v)) = p (g x) m.succ (cons (g y) (g ∘ v)),
     rw comp_cons },
   { assume m hm,
-    let A : (E [×m]→L[𝕜] F) → (G [×m]→L[𝕜] F) := λ h, h.comp_continuous_linear_map 𝕜 E g,
-    have hA : is_bounded_linear_map 𝕜 A :=
-      is_bounded_linear_map_continuous_multilinear_map_comp_linear g,
-    exact hA.continuous.comp_continuous_on
+    exact (hA m).continuous.comp_continuous_on
       ((hf.cont m hm).comp g.continuous.continuous_on (subset.refl _)) }
 end
 
@@ -2315,7 +2318,7 @@ end prod_map
 /-! ### Inversion in a complete normed algebra -/
 
 section algebra_inverse
-variables (𝕜) (R : Type*) [normed_ring R] [normed_algebra 𝕜 R]
+variables (𝕜) {R : Type*} [normed_ring R] [normed_algebra 𝕜 R]
 open normed_ring continuous_linear_map ring
 
 /-- In a complete normed algebra, the operation of inversion is `C^n`, for all `n`, at each
@@ -2341,12 +2344,18 @@ begin
     { refine ⟨{y : R | is_unit y}, x.nhds, _⟩,
       intros y hy,
       cases mem_set_of_eq.mp hy with y' hy',
-      rw [← hy', inverse_unit],
+      rw [← hy', units.inverse_eq],
       exact @has_fderiv_at_ring_inverse 𝕜 _ _ _ _ _ y' },
     { exact (lmul_left_right_is_bounded_bilinear 𝕜 R).times_cont_diff.neg.comp_times_cont_diff_at
         (x : R) (IH.prod IH) } },
   { exact times_cont_diff_at_top.mpr Itop }
 end
+
+variables (𝕜) (𝕜' : Type*) [normed_field 𝕜'] [normed_algebra 𝕜 𝕜'] [complete_space 𝕜']
+
+lemma times_cont_diff_at_inv {x : 𝕜'} (hx : x ≠ 0) {n} :
+  times_cont_diff_at 𝕜 n has_inv.inv x :=
+by simpa only [inverse_eq_has_inv] using times_cont_diff_at_ring_inverse 𝕜 (units.mk0 x hx)
 
 end algebra_inverse
 
@@ -2380,8 +2389,8 @@ begin
   { convert @times_cont_diff_at_const _ _ _ _ _ _ _ _ _ _ (0 :  E →L[𝕜] E),
     ext,
     simp },
-  { convert times_cont_diff_at_ring_inverse 𝕜 (E →L[𝕜] E) 1,
-    simp [O₂],
+  { convert times_cont_diff_at_ring_inverse 𝕜 1; try { apply_instance },
+    simp [O₂, one_def],
     refl },
 end
 

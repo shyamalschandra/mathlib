@@ -191,7 +191,9 @@ notation M ` ≃L[`:50 R `] ` M₂ := continuous_linear_equiv R M M₂
 namespace continuous_linear_map
 
 section semiring
-/- Properties that hold for non-necessarily commutative semirings. -/
+/-!
+### Properties that hold for non-necessarily commutative semirings.
+-/
 
 variables
 {R : Type*} [semiring R]
@@ -261,6 +263,7 @@ end
 
 instance : has_one (M →L[R] M) := ⟨id R M⟩
 
+lemma one_def : (1 : M →L[R] M) = id R M := rfl
 lemma id_apply : id R M x = x := rfl
 @[simp, norm_cast] lemma coe_id : (id R M : M →ₗ[R] M) = linear_map.id := rfl
 @[simp, norm_cast] lemma coe_id' : (id R M : M → M) = _root_.id := rfl
