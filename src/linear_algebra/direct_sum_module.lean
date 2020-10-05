@@ -100,6 +100,7 @@ def lset_to_set (S T : set ι) (H : S ⊆ T) :
   (⨁ (i : S), M i) →ₗ (⨁ (i : T), M i) :=
 to_module R _ _ $ λ i, lof R T (M ∘ @subtype.val _ T) ⟨i.1, H i.2⟩
 
+/-- The direct sum over `punit` is equivalent to its unique component. -/
 protected def lid (M : Type v) [add_comm_group M] [semimodule R M] :
   (⨁ (_ : punit), M) ≃ₗ M :=
 { .. direct_sum.id M,
